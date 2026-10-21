@@ -1,0 +1,14 @@
+# Copiar a /etc/systemd/system/gunicorn.service en el servidor
+[Unit]
+Description=Gunicorn TerriIA
+After=network.target mariadb.service
+
+[Service]
+User=ec2-user
+Group=nginx
+WorkingDirectory=/var/www/terriia
+ExecStart=/var/www/terriia/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 config.wsgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

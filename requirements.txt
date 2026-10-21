@@ -1,0 +1,5 @@
+# Dependencias comunes (desarrollo local con SQLite y servidor)
+Django==5.2.18          # LTS; Django 6 exige MariaDB 10.6+ y el servidor tiene 10.5
+djangorestframework==3.16.1
+django-filter==25.2
+python-dotenv==1.2.4

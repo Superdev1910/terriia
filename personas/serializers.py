@@ -1,0 +1,70 @@
+from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
+
+from core.validators import normalizar_rut, rut_es_valido
+
+from .models import Usuario
+
+
+class UsuarioSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        write_only=True, required=False, style={"input_type": "password"}
+    )
+    rol_nombre = serializers.CharField(source="rol.nombre", read_only=True)
+
+    class Meta:
+        model = Usuario
+        fields = [
+            "id_usuario",
+            "rut",
+            "email",
+            "first_name",
+            "last_name",
+            "rol",
+            "rol_nombre",
+            "estado",
+            "password",
+        ]
+
+    def validate_rut(self, valor):
+        if not rut_es_valido(valor):
+            raise serializers.ValidationError("RUT inválido.")
+        valor = normalizar_rut(valor)
+        existe = Usuario.objects.filter(rut=valor)
+        if self.instance:
+            existe = existe.exclude(pk=self.instance.pk)
+        if existe.exists():
+            raise serializers.ValidationError("Ya existe un usuario con este RUT.")
+        return valor
+
+    def validate_email(self, valor):
+        valor = valor.strip().lower()
+        existe = Usuario.objects.filter(email=valor)
+        if self.instance:
+            existe = existe.exclude(pk=self.instance.pk)
+        if existe.exists():
+            raise serializers.ValidationError("Ya existe un usuario con este email.")
+        return valor
+
+    def validate(self, datos):
+        if self.instance is None and not datos.get("password"):
+            raise serializers.ValidationError({"password": "La contraseña es obligatoria."})
+        if datos.get("password"):
+            validate_password(datos["password"])
+        return datos
+
+    def create(self, datos):
+        password = datos.pop("password")
+        usuario = Usuario(**datos)
+        usuario.set_password(password)
+        usuario.save()
+        return usuario
+
+    def update(self, instancia, datos):
+        password = datos.pop("password", None)
+        for campo, valor in datos.items():
+            setattr(instancia, campo, valor)
+        if password:
+            instancia.set_password(password)
+        instancia.save()
+        return instancia
