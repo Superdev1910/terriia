@@ -135,7 +135,29 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "core.exceptions.manejador_errores",
+    "DEFAULT_THROTTLE_RATES": {  # freno a la fuerza bruta (por IP)
+        "login": "10/min",
+        "recuperar": "12/min",
+    },
 }
+
+# OpenStreetMap exige el encabezado Referer para entregar los mapas (Leaflet). El valor por
+# defecto de Django ("same-origin") no lo envía a otros sitios y los mapas salen en blanco.
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# Correo (recuperar contraseña). En local los correos se imprimen en la consola del servidor;
+# en el servidor se define EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend en el .env.
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "TerriIA <no-responder@laserena.cl>")
+
+# Recuperar contraseña: vigencia del código (minutos) y errores permitidos antes de anularlo.
+RECUPERACION_MINUTOS = int(os.getenv("RECUPERACION_MINUTOS", "15"))
+RECUPERACION_INTENTOS = 5
 
 # Detrás de Nginx en producción
 if not DEBUG:

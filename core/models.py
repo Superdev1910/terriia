@@ -55,3 +55,24 @@ class Auditoria(models.Model):
 
     def __str__(self):
         return f"{self.fecha:%Y-%m-%d %H:%M} {self.evento} {self.entidad}#{self.entidad_id}"
+
+
+class CodigoRecuperacion(models.Model):
+    """Código de 6 dígitos para recuperar la contraseña. Solo se guarda su huella, nunca el código."""
+
+    id_codigo = models.AutoField(primary_key=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        db_column="id_usuario",
+        related_name="codigos_recuperacion",
+    )
+    huella = models.CharField(max_length=64)
+    creado = models.DateTimeField(auto_now_add=True)
+    vence = models.DateTimeField()
+    intentos = models.PositiveSmallIntegerField(default=0)
+    usado = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "codigo_recuperacion"
+        ordering = ["-creado"]
