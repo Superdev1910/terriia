@@ -1,0 +1,16 @@
+{% extends "organizacion/publico_base.html" %}
+{% block titulo %}Servicios{% endblock %}
+
+{% block contenido %}
+<h1 class="titulo-seccion">Servicios</h1>
+<p class="intro-seccion">Unidades que prestan apoyo permanente en las delegaciones.</p>
+<div class="rejilla-servicios">
+  {% for icono, titulo, texto in servicios %}
+  <article class="servicio">
+    <i class="bi {{ icono }}" aria-hidden="true"></i>
+    <h2>{{ titulo }}</h2>
+    <p>{{ texto }}</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

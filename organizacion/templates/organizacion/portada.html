@@ -1,0 +1,52 @@
+{% extends "organizacion/publico_base.html" %}
+{% load static %}
+{% block titulo %}Inicio{% endblock %}
+
+{% block principal %}
+<section class="hero" style="background-image: url('{% static 'organizacion/img/playa.jpg' %}');" aria-label="Presentación">
+  <div class="hero-in">
+    <h1>Más cerca de tu comunidad</h1>
+    <p>Conoce las delegaciones de la Municipalidad de La Serena, sus encargados y cómo contactarlos.</p>
+    <div class="acciones">
+      <a class="btn btn-blanco" href="{% url 'pub_delegaciones' %}"><i class="bi bi-buildings" aria-hidden="true"></i> Ver delegaciones</a>
+      {% if not user.is_authenticated %}
+        <a class="btn btn-fantasma" href="{% url 'pub_ingresar' %}">Iniciar sesión</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<div class="pub-contenido">
+  <h2 class="titulo-seccion">Acceso rápido</h2>
+  <p class="intro-seccion">Todo lo que necesitas para llegar a tu delegación.</p>
+  <div class="tarjetas">
+    <a class="tarjeta" href="{% url 'pub_delegaciones' %}">
+      <i class="bi bi-geo-alt" aria-hidden="true"></i>
+      <h3>Delegaciones</h3>
+      <p>Encargado, dirección, correo y teléfonos de cada delegación, con su mapa.</p>
+      <span class="ir">Ver delegaciones <i class="bi bi-arrow-right"></i></span>
+    </a>
+    <a class="tarjeta" href="{% url 'pub_servicios' %}">
+      <i class="bi bi-grid" aria-hidden="true"></i>
+      <h3>Servicios</h3>
+      <p>Atención de público, subsidios, Registro Social de Hogares y más.</p>
+      <span class="ir">Ver servicios <i class="bi bi-arrow-right"></i></span>
+    </a>
+    <a class="tarjeta" href="{% url 'pub_contacto' %}">
+      <i class="bi bi-envelope" aria-hidden="true"></i>
+      <h3>Contacto</h3>
+      <p>Escribe a la delegación de tu sector o envía tu consulta.</p>
+      <span class="ir">Contactar <i class="bi bi-arrow-right"></i></span>
+    </a>
+  </div>
+
+  <section class="franja" aria-label="La Municipalidad">
+    <img src="{% static 'organizacion/img/municipalidad.jpg' %}" alt="Edificio de la Municipalidad de La Serena">
+    <div class="franja-texto">
+      <h2>Una municipalidad presente en cada sector</h2>
+      <p>Las delegaciones mantienen contacto directo con la comunidad y fortalecen los lazos con las familias y las organizaciones del territorio.</p>
+      <div><a class="btn btn-primario" href="{% url 'pub_delegaciones' %}">Conocer mi delegación</a></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

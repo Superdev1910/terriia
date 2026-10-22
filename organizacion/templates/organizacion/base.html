@@ -1,0 +1,67 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Organización{% endblock %} · TerriIA · Municipalidad de La Serena</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{% static 'organizacion/css/terriia.css' %}">
+  <link rel="stylesheet" href="{% static 'organizacion/css/publico.css' %}">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <button class="btn-menu" id="btnMenu" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu">
+      <i class="bi bi-list"></i>
+    </button>
+    <div class="marca">
+      <img src="{% static 'organizacion/img/escudo.png' %}" alt="" class="escudo" onerror="this.style.display='none'">
+      <div class="marca-texto">
+        <strong>Municipalidad de La Serena</strong>
+        <span>TerriIA · Gestión de delegaciones</span>
+      </div>
+    </div>
+
+    <div class="contexto">
+      <span class="distintivo" title="Delegación activa">
+        <i class="bi {% if delegacion_codigo %}bi-geo-alt-fill{% else %}bi-globe2{% endif %}" aria-hidden="true"></i>
+        <span>{% if delegacion_codigo %}{{ delegacion_codigo }} · {% endif %}{{ delegacion_nombre }}</span>
+      </span>
+      <span class="usuario">
+        <i class="bi bi-person-circle" aria-hidden="true"></i>
+        <span><strong>{{ nombre_usuario }}</strong><small>{{ rol_usuario }}</small></span>
+      </span>
+      <button type="button" class="btn-salir" data-cerrar-sesion><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Salir</button>
+    </div>
+  </header>
+
+  <div class="estructura">
+    <nav class="menu" id="menu" aria-label="Principal">
+      <p class="menu-titulo">Organización</p>
+      {% for nombre, texto, icono in menu %}
+        <a href="{% url nombre %}" class="{% if nombre == activa %}activo{% endif %}" {% if nombre == activa %}aria-current="page"{% endif %}>
+          <i class="bi {{ icono }}" aria-hidden="true"></i> {{ texto }}
+        </a>
+      {% endfor %}
+      <a href="{% url 'pub_inicio' %}" class="menu-enlace"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Ver sitio público</a>
+      <p class="menu-pie">Proyecto Integrado · material académico<br>Datos de ejemplo</p>
+    </nav>
+
+    <main id="contenido" class="contenido">
+      {% block contenido %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.8/dist/sweetalert2.all.min.js"></script>
+  <script src="{% static 'organizacion/js/sesion.js' %}"></script>
+  <script>
+    const btn = document.getElementById('btnMenu'), menu = document.getElementById('menu');
+    btn.addEventListener('click', () => {
+      const abierto = menu.classList.toggle('abierto');
+      btn.setAttribute('aria-expanded', abierto);
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

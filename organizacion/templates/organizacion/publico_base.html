@@ -1,0 +1,68 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Inicio{% endblock %} · Municipalidad de La Serena · TerriIA</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{% static 'organizacion/css/terriia.css' %}">
+  <link rel="stylesheet" href="{% static 'organizacion/css/publico.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="pub-cab">
+    <div class="pub-cab-in">
+      <button class="btn-menu" id="btnMenuPub" aria-label="Abrir menú" aria-expanded="false" aria-controls="menuPublico">
+        <i class="bi bi-list"></i>
+      </button>
+      <a class="marca" href="{% url 'pub_inicio' %}">
+        <img src="{% static 'organizacion/img/escudo.png' %}" alt="" class="escudo" onerror="this.style.display='none'">
+        <div class="marca-texto">
+          <strong>Municipalidad de La Serena</strong>
+          <span>TerriIA · Gestión de delegaciones</span>
+        </div>
+      </a>
+
+      <nav class="pub-nav" id="menuPublico" aria-label="Principal">
+        {% for nombre, texto, icono in menu_publico %}
+          <a href="{% url nombre %}" {% if nombre == activa %}aria-current="page"{% endif %}>
+            <i class="bi {{ icono }}" aria-hidden="true"></i> {{ texto }}
+          </a>
+        {% endfor %}
+      </nav>
+
+      <div class="pub-sesion">
+        {% if user.is_authenticated %}
+          <span class="quien"><i class="bi bi-person-circle" aria-hidden="true"></i><span>{{ nombre_usuario }}</span></span>
+          {% if es_admin %}<a class="btn btn-blanco" href="{% url 'org_inicio' %}"><i class="bi bi-speedometer2" aria-hidden="true"></i> Panel</a>{% endif %}
+          <a class="btn btn-fantasma" href="{% url 'pub_cambiar_clave' %}" title="Cambiar contraseña"><i class="bi bi-key" aria-hidden="true"></i><span class="sr">Cambiar contraseña</span></a>
+          <button type="button" class="btn-salir" data-cerrar-sesion><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Salir</button>
+        {% else %}
+          <a class="btn btn-blanco" href="{% url 'pub_ingresar' %}"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Ingresar</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main id="contenido">
+    {% block principal %}<div class="pub-contenido">{% block contenido %}{% endblock %}</div>{% endblock %}
+  </main>
+
+  <footer class="pub-pie">
+    <strong>Municipalidad de La Serena</strong> · TerriIA · Proyecto Integrado INACAP · material académico
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.8/dist/sweetalert2.all.min.js"></script>
+  <script src="{% static 'organizacion/js/sesion.js' %}"></script>
+  <script>
+    const btnPub = document.getElementById('btnMenuPub'), navPub = document.getElementById('menuPublico');
+    btnPub.addEventListener('click', () => {
+      const abierto = navPub.classList.toggle('abierto');
+      btnPub.setAttribute('aria-expanded', abierto);
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
