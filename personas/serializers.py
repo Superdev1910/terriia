@@ -80,7 +80,7 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         valor = valor.strip()
         if not valor:
             raise serializers.ValidationError(
-                "EL identificador institucional es un campo obligatorio."
+                "El identificador institucional es un campo obligatorio."
             )
         existe = Funcionario.objects.filter(identificador_inst__iexact=valor)
         if self.instance:
@@ -100,11 +100,11 @@ class FuncionarioSerializer(serializers.ModelSerializer):
     def validate_delegacion(self, delegacion):
         cambio = not self.instance or self.instance.delegacion_id != delegacion.pk
         if cambio and delegacion.estado != Delegacion.ACTIVA:
-            raise serializers.ValidationError("La delegación que seleccióno no está activa.")
+            raise serializers.ValidationError("La delegación que seleccionó no está activa.")
         return delegacion
 
     def validate_cargo(self, cargo):
         cambio = not self.instance or self.instance.cargo_id != cargo.pk
         if cambio and not cargo.vigente:
-            raise serializers.ValidationError("El cargo que seleccióno no está vigente.")
+            raise serializers.ValidationError("El cargo que seleccionó no está vigente.")
         return cargo

@@ -15,4 +15,4 @@ class UsuarioAdmin(admin.ModelAdmin):
 class FuncionarioAdmin(admin.ModelAdmin):
     list_display = ["identificador_inst", "nombre", "cargo", "delegacion", "estado"]
     list_filter = ["estado", "delegacion", "cargo"]
-    search_fields = ["identificador_inst"]
+    search_fields = ["identificador_inst", "nombre"]
