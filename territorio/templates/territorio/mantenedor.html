@@ -1,0 +1,35 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}{{ entidad|capfirst }}{% endblock %}
+{% block contenido %}
+<div class="encabezado-pagina">
+  <div><h1 id="tituloPagina"></h1><p class="subtitulo" id="subtituloPagina"></p></div>
+  <div class="acciones-pagina">
+    <button class="btn btn-borde" id="btnExcel">Exportar a Excel</button>
+    <button class="btn btn-primario" id="btnNuevo">Nuevo</button>
+  </div>
+</div>
+<section class="panel" aria-label="Listado">
+  <form class="filtros" id="filtros" onsubmit="return false">
+    <label class="campo-buscar"><span class="sr">Buscar</span>
+      <input type="search" id="buscar" placeholder="Buscar..." autocomplete="off">
+    </label>
+    <select id="filtroEstado" aria-label="Filtrar por estado"><option value="">Todos los estados</option></select>
+    <button type="button" class="btn btn-texto" id="btnLimpiar">Limpiar</button>
+  </form>
+  <div class="tabla-scroll"><table class="tabla"><thead><tr id="cabeceraTabla"></tr></thead><tbody id="cuerpoTabla"></tbody></table></div>
+  <div id="estado" class="estado" role="status"></div>
+  <div class="pie-tabla"><span id="total" class="total"></span><nav class="paginador" id="paginador"></nav></div>
+</section>
+<div class="modal-fondo" id="modal" hidden><div class="modal" role="dialog" aria-modal="true">
+  <div class="modal-cab"><h2 id="modalTitulo"></h2><button class="btn-cerrar" id="modalCerrar" type="button">×</button></div>
+  <form id="formulario"><div class="modal-cuerpo" id="camposForm"></div>
+    <div class="modal-pie"><button class="btn btn-borde" id="btnCancelar" type="button">Cancelar</button><button class="btn btn-primario" type="submit">Guardar</button></div>
+  </form>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{{ entidad|json_script:"entidad" }}
+<script src="{% static 'territorio/js/mantenedor.js' %}?v=20261022-2"></script>
+{% endblock %}
