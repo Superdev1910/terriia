@@ -5,6 +5,7 @@ from django.utils.decorators import method_decorator
 from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from . import auditoria
@@ -97,16 +98,25 @@ class LoginView(APIView):
     """GET entrega la cookie CSRF; POST {email, password} inicia sesión."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def get(self, request):
         return Response({"detail": "Enviar POST con email y password."})
 
     def post(self, request):
-        user = authenticate(
-            request,
-            username=request.data.get("email", "").strip().lower(),
-            password=request.data.get("password", ""),
-        )
+        email, clave = request.data.get("email"), request.data.get("password")
+        if (
+            not isinstance(email, str)
+            or not isinstance(clave, str)
+            or not email.strip()
+            or not clave
+        ):
+            return Response(
+                {"error": "Escribe tu correo y tu contraseña.", "campo": None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = authenticate(request, username=email.strip().lower(), password=clave)
         if user is None:
             return Response(
                 {"error": "Email o contraseña incorrectos.", "campo": None},
