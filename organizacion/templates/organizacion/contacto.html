@@ -1,0 +1,70 @@
+{% extends "organizacion/publico_base.html" %}
+{% block titulo %}Contacto{% endblock %}
+
+{% block contenido %}
+<h1 class="titulo-seccion">Contacto</h1>
+<p class="intro-seccion">Escribe a la delegación de tu sector o envíanos tu consulta.</p>
+
+<div class="contacto-cols">
+  <section class="caja" aria-labelledby="tituloCorreos">
+    <h2 id="tituloCorreos">Correos de las delegaciones</h2>
+    <ul class="lista-contacto">
+      {% for d in delegaciones %}
+      <li>
+        <strong>{{ d.nombre }}</strong>
+        <i class="bi bi-envelope-fill" aria-hidden="true"></i> <a href="mailto:{{ d.correo }}">{{ d.correo }}</a>
+        {% if d.telefonos != "Por completar" %}<br><i class="bi bi-telephone-fill" aria-hidden="true"></i> {{ d.telefonos }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="caja" aria-labelledby="tituloForm">
+    <h2 id="tituloForm">Envíanos tu consulta</h2>
+    <p class="aviso-demo">Demostración: el formulario todavía no envía mensajes.</p>
+    <form id="formContacto" class="form-grid" novalidate>
+      <div class="campo">
+        <label for="cNombre">Nombre <span class="oblig">*</span></label>
+        <input id="cNombre" required autocomplete="name">
+        <span class="error">Campo obligatorio</span>
+      </div>
+      <div class="campo">
+        <label for="cCorreo">Correo electrónico <span class="oblig">*</span></label>
+        <input id="cCorreo" type="email" required autocomplete="email">
+        <span class="error">Campo obligatorio</span>
+      </div>
+      <div class="campo">
+        <label for="cDelegacion">Delegación</label>
+        <select id="cDelegacion">
+          {% for d in delegaciones %}<option>{{ d.nombre }}</option>{% endfor %}
+        </select>
+        <span class="error"></span>
+      </div>
+      <div class="campo">
+        <label for="cMensaje">Mensaje <span class="oblig">*</span></label>
+        <textarea id="cMensaje" rows="4" required></textarea>
+        <span class="error">Campo obligatorio</span>
+      </div>
+      <div><button class="btn btn-primario" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Enviar</button></div>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('formContacto').addEventListener('submit', e => {
+    e.preventDefault();
+    const form = e.target;
+    form.querySelectorAll('.campo.invalido').forEach(c => c.classList.remove('invalido'));
+    let primero = null;
+    form.querySelectorAll('[required]').forEach(i => {
+      if (!i.value.trim()) { i.closest('.campo').classList.add('invalido'); primero = primero || i; }
+    });
+    if (primero) { primero.focus(); return; }
+    Swal.fire({ icon: 'success', title: 'Mensaje listo', text: 'Demostración: todavía no se envía el mensaje.',
+                confirmButtonText: 'Entendido', confirmButtonColor: '#ad0000' });
+    form.reset();
+  });
+</script>
+{% endblock %}

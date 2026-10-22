@@ -1,0 +1,82 @@
+{% extends "organizacion/auth_base.html" %}
+{% block titulo %}Recuperar contraseña{% endblock %}
+
+{% block formulario %}
+<h1>Recuperar contraseña</h1>
+<div id="alerta" class="alerta" role="alert" hidden><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><span></span></div>
+
+<div id="flujoRecuperar">
+  <div id="indicador">
+    <p class="paso-texto" id="pasoTexto" aria-live="polite">Paso 1 de 3</p>
+    <ol class="pasos" aria-hidden="true"><li class="hecho"></li><li></li><li></li></ol>
+  </div>
+
+  <section data-paso="1">
+    <p class="auth-sub">Escribe tu correo y te enviaremos un código de verificación.</p>
+    <form id="formCorreo" novalidate>
+      <div class="campo">
+        <label for="correoRecuperar">Correo electrónico <span class="oblig">*</span></label>
+        <input id="correoRecuperar" type="email" autocomplete="email" placeholder="nombre@laserena.cl" required>
+        <span class="error">Campo obligatorio</span>
+      </div>
+      <button class="btn btn-primario ancho" type="submit"><i class="bi bi-send" aria-hidden="true"></i> <span>Enviar código</span></button>
+    </form>
+  </section>
+
+  <section data-paso="2" hidden>
+    <p class="auth-sub">Enviamos un código de 6 dígitos a <strong id="correoDestino"></strong>.</p>
+    <form id="formCodigo" novalidate>
+      <div>
+        <div class="codigo-fila" role="group" aria-label="Código de 6 dígitos">
+          <input class="codigo-celda" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Dígito 1">
+          <input class="codigo-celda" inputmode="numeric" maxlength="1" aria-label="Dígito 2">
+          <input class="codigo-celda" inputmode="numeric" maxlength="1" aria-label="Dígito 3">
+          <input class="codigo-celda" inputmode="numeric" maxlength="1" aria-label="Dígito 4">
+          <input class="codigo-celda" inputmode="numeric" maxlength="1" aria-label="Dígito 5">
+          <input class="codigo-celda" inputmode="numeric" maxlength="1" aria-label="Dígito 6">
+        </div>
+        <p class="codigo-error" id="errorCodigo" role="alert"></p>
+      </div>
+      <button class="btn btn-primario ancho" type="submit"><i class="bi bi-shield-check" aria-hidden="true"></i> <span>Verificar código</span></button>
+      <div class="acciones-col">
+        <button class="btn btn-borde ancho" type="button" id="btnReenviar" disabled>Reenviar código</button>
+        <button class="btn btn-texto ancho" type="button" id="cambiarCorreo">Usar otro correo</button>
+        <p class="auth-sub" id="msgReenvio" aria-live="polite" style="margin:0;text-align:center"></p>
+      </div>
+    </form>
+  </section>
+
+  <section data-paso="3" hidden>
+    <p class="auth-sub">Elige tu nueva contraseña.</p>
+    <form id="formNueva" novalidate>
+      <div class="campo">
+        <label for="claveNueva">Nueva contraseña <span class="oblig">*</span></label>
+        <div class="con-icono">
+          <input id="claveNueva" type="password" autocomplete="new-password" data-medidor="medidorNueva" required>
+          <button type="button" class="ojo" data-toggle-clave="claveNueva" aria-label="Mostrar contraseña"><i class="bi bi-eye" aria-hidden="true"></i></button>
+        </div>
+        <div class="medidor" id="medidorNueva" aria-live="polite"><span class="barra"><i></i></span><small>Usa 8 o más caracteres, mayúsculas, números y símbolos.</small></div>
+        <span class="error">Campo obligatorio</span>
+      </div>
+      <div class="campo">
+        <label for="claveNueva2">Repetir contraseña <span class="oblig">*</span></label>
+        <div class="con-icono">
+          <input id="claveNueva2" type="password" autocomplete="new-password" required>
+          <button type="button" class="ojo" data-toggle-clave="claveNueva2" aria-label="Mostrar contraseña"><i class="bi bi-eye" aria-hidden="true"></i></button>
+        </div>
+        <span class="error">Campo obligatorio</span>
+      </div>
+      <button class="btn btn-primario ancho" type="submit"><i class="bi bi-key" aria-hidden="true"></i> <span>Cambiar contraseña</span></button>
+    </form>
+  </section>
+
+  <section data-paso="4" class="exito" hidden>
+    <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+    <h2>Contraseña actualizada</h2>
+    <p class="auth-sub">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+    <a class="btn btn-primario ancho" href="{% url 'pub_ingresar' %}">Ir a iniciar sesión</a>
+  </section>
+</div>
+
+<p class="auth-pie"><a href="{% url 'pub_ingresar' %}">Volver a iniciar sesión</a></p>
+{% endblock %}
