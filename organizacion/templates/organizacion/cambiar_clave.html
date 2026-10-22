@@ -1,0 +1,36 @@
+{% extends "organizacion/auth_base.html" %}
+{% block titulo %}Cambiar contraseña{% endblock %}
+
+{% block formulario %}
+<h1>Cambiar contraseña</h1>
+<p class="auth-sub">Por seguridad, confirma tu contraseña actual.</p>
+
+<form id="formCambiar" novalidate>
+  <div class="campo">
+    <label for="claveActual">Contraseña actual <span class="oblig">*</span></label>
+    <div class="con-icono">
+      <input id="claveActual" type="password" autocomplete="current-password" required>
+      <button type="button" class="ojo" data-toggle-clave="claveActual" aria-label="Mostrar contraseña"><i class="bi bi-eye" aria-hidden="true"></i></button>
+    </div>
+    <span class="error">Campo obligatorio</span>
+  </div>
+  <div class="campo">
+    <label for="claveNueva">Nueva contraseña <span class="oblig">*</span></label>
+    <div class="con-icono">
+      <input id="claveNueva" type="password" autocomplete="new-password" data-medidor="medidorCambiar" required>
+      <button type="button" class="ojo" data-toggle-clave="claveNueva" aria-label="Mostrar contraseña"><i class="bi bi-eye" aria-hidden="true"></i></button>
+    </div>
+    <div class="medidor" id="medidorCambiar" aria-live="polite"><span class="barra"><i></i></span><small>Usa 8 o más caracteres, mayúsculas, números y símbolos.</small></div>
+    <span class="error">Campo obligatorio</span>
+  </div>
+  <div class="campo">
+    <label for="claveNueva2">Repetir nueva contraseña <span class="oblig">*</span></label>
+    <div class="con-icono">
+      <input id="claveNueva2" type="password" autocomplete="new-password" required>
+      <button type="button" class="ojo" data-toggle-clave="claveNueva2" aria-label="Mostrar contraseña"><i class="bi bi-eye" aria-hidden="true"></i></button>
+    </div>
+    <span class="error">Campo obligatorio</span>
+  </div>
+  <button class="btn btn-primario ancho" type="submit"><i class="bi bi-key" aria-hidden="true"></i> <span>Guardar contraseña</span></button>
+</form>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "organizacion/auth_base.html" %}
+{% block titulo %}Iniciar sesión{% endblock %}
+
+{% block formulario %}
+<h1>Iniciar sesión</h1>
+<p class="auth-sub">Ingresa con tu correo y tu contraseña.</p>
+
+<div id="alerta" class="alerta" role="alert" hidden><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><span></span></div>
+
+<form id="formLogin" novalidate data-siguiente="{{ siguiente }}">
+  <div class="campo">
+    <label for="email">Correo electrónico <span class="oblig">*</span></label>
+    <input id="email" type="email" autocomplete="username" placeholder="nombre@laserena.cl" required>
+    <span class="error">Campo obligatorio</span>
+  </div>
+  <div class="campo">
+    <label for="password">Contraseña <span class="oblig">*</span></label>
+    <div class="con-icono">
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button type="button" class="ojo" data-toggle-clave="password" aria-label="Mostrar contraseña"><i class="bi bi-eye" aria-hidden="true"></i></button>
+    </div>
+    <span class="error">Campo obligatorio</span>
+  </div>
+  <div class="fila-enlace"><a href="{% url 'pub_recuperar' %}">¿Olvidaste tu contraseña?</a></div>
+  <button class="btn btn-primario ancho" type="submit"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span>Ingresar</span></button>
+</form>
+
+<p class="auth-pie">¿No tienes cuenta? <a href="{% url 'pub_registro' %}">Regístrate</a></p>
+{% endblock %}

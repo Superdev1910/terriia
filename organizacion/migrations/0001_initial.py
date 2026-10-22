@@ -1,0 +1,124 @@
+import django.core.validators
+import django.db.models.deletion
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = []
+
+    operations = [
+        migrations.CreateModel(
+            name="Delegacion",
+            fields=[
+                ("id_delegacion", models.AutoField(primary_key=True, serialize=False)),
+                ("codigo", models.CharField(max_length=10, unique=True)),
+                ("nombre", models.CharField(max_length=100, unique=True)),
+                ("direccion", models.CharField(blank=True, default="", max_length=200)),
+                ("comuna", models.CharField(default="La Serena", max_length=80)),
+                (
+                    "estado",
+                    models.CharField(
+                        choices=[("activa", "Activa"), ("inactiva", "Inactiva")],
+                        default="activa",
+                        max_length=8,
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name_plural": "delegaciones",
+                "db_table": "delegacion",
+                "ordering": ["codigo"],
+            },
+        ),
+        migrations.CreateModel(
+            name="Area",
+            fields=[
+                ("id_area", models.AutoField(primary_key=True, serialize=False)),
+                (
+                    "tipo",
+                    models.CharField(
+                        choices=[
+                            ("social", "Social"),
+                            ("territorial", "Territorial"),
+                            ("administrativa", "Administrativa"),
+                            ("operativa", "Operativa"),
+                        ],
+                        max_length=15,
+                    ),
+                ),
+                (
+                    "prioridad",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(4),
+                        ]
+                    ),
+                ),
+                (
+                    "estado",
+                    models.CharField(
+                        choices=[("activa", "Activa"), ("inactiva", "Inactiva")],
+                        default="activa",
+                        max_length=8,
+                    ),
+                ),
+                (
+                    "delegacion",
+                    models.ForeignKey(
+                        db_column="id_delegacion",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="areas",
+                        to="organizacion.delegacion",
+                    ),
+                ),
+            ],
+            options={
+                "db_table": "area",
+                "ordering": ["delegacion", "prioridad"],
+            },
+        ),
+        migrations.CreateModel(
+            name="Cargo",
+            fields=[
+                ("id_cargo", models.AutoField(primary_key=True, serialize=False)),
+                ("nombre", models.CharField(max_length=100)),
+                ("descripcion", models.CharField(blank=True, default="", max_length=255)),
+                ("vigente", models.BooleanField(default=True)),
+                (
+                    "area",
+                    models.ForeignKey(
+                        blank=True,
+                        db_column="id_area",
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="cargos",
+                        to="organizacion.area",
+                    ),
+                ),
+            ],
+            options={
+                "db_table": "cargo",
+                "ordering": ["nombre"],
+            },
+        ),
+        migrations.AddConstraint(
+            model_name="area",
+            constraint=models.UniqueConstraint(
+                fields=("delegacion", "tipo"), name="uq_area_delegacion_tipo"
+            ),
+        ),
+        migrations.AddConstraint(
+            model_name="area",
+            constraint=models.UniqueConstraint(
+                fields=("delegacion", "prioridad"), name="uq_area_delegacion_prioridad"
+            ),
+        ),
+        migrations.AddConstraint(
+            model_name="cargo",
+            constraint=models.UniqueConstraint(fields=("area", "nombre"), name="uq_cargo_area_nombre"),
+        ),
+    ]
