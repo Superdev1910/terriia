@@ -78,3 +78,33 @@ class Usuario(AbstractUser):
 
     def __str__(self):
         return f"{self.email} ({self.rol})"
+
+
+class Funcionario(models.Model):
+    """
+    tabla 'funcionario' del modelo físico de la BBDD
+    """
+
+    ACTIVO, INACTIVO = "activo", "inactivo"
+    ESTADOS = [(ACTIVO, "Activo"), (INACTIVO, "Inactivo")]
+
+    id_funcionario = models.AutoField(primary_key=True)
+    identificador_inst = models.CharField(max_length=30, unique=True)
+    nombre = models.CharField(max_length=150)
+    cargo = models.ForeignKey("organizacion.Cargo", on_delete=models.PROTECT, db_column="id_cargo")
+    delegacion = models.ForeignKey(
+        "organizacion.Delegacion", on_delete=models.PROTECT, db_column="id_delegacion"
+    )
+    estado = models.CharField(max_length=8, choices=ESTADOS, default=ACTIVO)
+
+    class Meta:
+        db_table = "funcionario"
+        ordering = ["identificador_inst"]
+
+    def save(self, *args, **kwargs):
+        self.identificador_inst = (self.identificador_inst or "").strip()
+        self.nombre = (self.nombre or "").strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.identificador_inst
