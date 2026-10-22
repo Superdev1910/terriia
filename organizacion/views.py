@@ -81,7 +81,7 @@ class DelegacionViewSet(MantenedorOrganizacionViewSet):
         ),
     ).order_by("codigo")
     serializer_class = DelegacionSerializer
-    search_fields = ["codigo", "nombre", "direccion", "comuna"]
+    search_fields = ["codigo", "nombre", "ambito", "direccion", "comuna"]
     filterset_fields = ["estado"]
     ordering_fields = [
         "id_delegacion",
@@ -106,8 +106,8 @@ class DelegacionViewSet(MantenedorOrganizacionViewSet):
         datos["areas"] = [
             {
                 "id_area": a.id_area,
-                "tipo": a.tipo,
-                "tipo_texto": a.get_tipo_display(),
+                "nombre": a.nombre,
+                "nombre_texto": a.get_nombre_display(),
                 "prioridad": a.prioridad,
                 "estado": a.estado,
                 "cargos": [
@@ -127,9 +127,9 @@ class AreaViewSet(MantenedorOrganizacionViewSet):
         .order_by("delegacion__codigo", "prioridad")
     )
     serializer_class = AreaSerializer
-    search_fields = ["tipo", "delegacion__codigo", "delegacion__nombre"]
-    filterset_fields = ["estado", "delegacion", "tipo"]
-    ordering_fields = ["id_area", "delegacion__codigo", "tipo", "prioridad", "estado"]
+    search_fields = ["nombre", "delegacion__codigo", "delegacion__nombre"]
+    filterset_fields = ["estado", "delegacion", "nombre"]
+    ordering_fields = ["id_area", "delegacion__codigo", "nombre", "prioridad", "estado"]
     campo_estado = "estado"
 
     def propagar(self, usuario, instancia):

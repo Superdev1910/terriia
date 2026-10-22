@@ -7,7 +7,7 @@ from django.urls import reverse
 from .utiles import crear_admin, crear_funcionario
 
 PUBLICAS = ["pub_inicio", "pub_delegaciones", "pub_servicios", "pub_contacto"]
-ACCESO = ["pub_ingresar", "pub_registro", "pub_recuperar"]
+ACCESO = ["pub_ingresar", "pub_recuperar"]
 
 
 class SitioPublicoTests(TestCase):
@@ -23,10 +23,10 @@ class SitioPublicoTests(TestCase):
             for destino in PUBLICAS:
                 self.assertIn(reverse(destino), html, destino)
 
-    def test_anonimo_ve_ingresar_y_registrarse(self):
+    def test_anonimo_ve_ingresar_y_no_hay_registro_publico(self):
         html = self.client.get(reverse("pub_inicio")).content.decode()
         self.assertIn(reverse("pub_ingresar"), html)
-        self.assertIn(reverse("pub_registro"), html)
+        self.assertNotIn("/registro/", html)
         self.assertNotIn("data-cerrar-sesion", html)
 
     def test_usuario_con_sesion_ve_salir_y_cambiar_clave(self):
@@ -95,7 +95,6 @@ class PantallasDeAccesoTests(TestCase):
         for esperado in [
             'id="formLogin"',
             reverse("pub_recuperar"),
-            reverse("pub_registro"),
             "data-toggle-clave",
             "auth.js",
         ]:
@@ -142,16 +141,8 @@ class PantallasDeAccesoTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertTrue(r["Location"].startswith(reverse("pub_ingresar") + "?next="))
 
-    def test_registro_trae_sus_campos(self):
-        html = self.client.get(reverse("pub_registro")).content.decode()
-        for esperado in [
-            'id="formRegistro"',
-            'id="rut"',
-            'id="correo"',
-            'id="clave2"',
-            'id="terminos"',
-        ]:
-            self.assertIn(esperado, html, esperado)
+    def test_no_existe_registro_publico(self):
+        self.assertEqual(self.client.get("/registro/").status_code, 404)
 
     def test_recuperar_trae_los_cuatro_pasos_y_el_codigo_de_seis_digitos(self):
         html = self.client.get(reverse("pub_recuperar")).content.decode()

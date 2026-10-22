@@ -33,7 +33,7 @@ class FlujoOrganizacionTests(APITestCase):
         d = self.crear_delegacion()
         areas = self.client.get(AREAS, {"delegacion": d["id_delegacion"]}).data
         self.assertEqual(areas["count"], 4)
-        social = next(a for a in areas["results"] if a["tipo"] == "social")
+        social = next(a for a in areas["results"] if a["nombre"] == "Social")
 
         r = self.client.post(CARGOS, {"nombre": "Asistente social", "area": social["id_area"]})
         self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)

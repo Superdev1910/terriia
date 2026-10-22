@@ -5,15 +5,15 @@ from .models import Area, Cargo, Delegacion
 
 @admin.register(Delegacion)
 class DelegacionAdmin(admin.ModelAdmin):
-    list_display = ["codigo", "nombre", "comuna", "estado"]
+    list_display = ["codigo", "nombre", "ambito", "comuna", "estado"]
     list_filter = ["estado"]
     search_fields = ["codigo", "nombre"]
 
 
 @admin.register(Area)
 class AreaAdmin(admin.ModelAdmin):
-    list_display = ["delegacion", "tipo", "prioridad", "estado"]
-    list_filter = ["estado", "tipo", "delegacion"]
+    list_display = ["delegacion", "nombre", "prioridad", "estado"]
+    list_filter = ["estado", "nombre", "delegacion"]
 
 
 @admin.register(Cargo)

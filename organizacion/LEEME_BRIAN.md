@@ -15,6 +15,13 @@ pruebas unitarias y pruebas de integración / funcionales.
 3. `black .` y `python manage.py test organizacion` antes de hacer commit.
 4. Abre http://127.0.0.1:8000/ (sitio público) o entra con un usuario Administrador a http://127.0.0.1:8000/organizacion/ (panel)
 
+## Campos respecto del SQL v2.3
+- `delegacion`: `nombre`, `ambito` y `estado` como en el SQL; **extras** `codigo`, `direccion`, `comuna` (directorio y pantallas).
+- `area`: `nombre` (ENUM de 4 valores) y `prioridad` como en el SQL; **extra** `estado` (para desactivar en vez de borrar).
+- `cargo`: como en el SQL; **extra** `descripcion`.
+- Los extras quedan documentados en el modelo físico v2.4 (delta).
+- Directorio público: sin nombres de funcionarios (solo cargo y teléfono de oficina), por la ley de datos personales.
+
 ## Rutas
 | Qué | URL |
 |---|---|
@@ -25,7 +32,7 @@ pruebas unitarias y pruebas de integración / funcionales.
 
 ## Reglas implementadas
 - delegación: código y nombre únicos (sin distinguir mayúsculas); al crearla nacen sus 4 áreas.
-- área: un tipo por delegación; prioridad 1 a 4 sin repetir dentro de la delegación. Como las 4 áreas nacen
+- área: las 4 del cliente (Social, DISERCO, Seguridad y Organización Comunitaria; campo `nombre` como en el SQL v2.3), una de cada una por delegación; prioridad 1 a 4 sin repetir dentro de la delegación. Como las 4 áreas nacen
   con las 4 prioridades, **cambiar una prioridad a una ya usada las intercambia** (la otra área recibe la
   prioridad anterior, en una sola transacción y con auditoría de las dos). Al crear un área o moverla a otra
   delegación, una prioridad repetida se rechaza.
@@ -61,7 +68,6 @@ cerrar formularios y panel (UX-05) e inicio con cifras reales. SweetAlert2 y los
   Excel) se verificó a mano en el navegador; no hay pruebas automáticas en navegador ni pruebas de estrés.
 
 ## Pendiente / por confirmar
-- Los 4 tipos de área (social, territorial, administrativa, operativa) son un **supuesto**: confirmarlos con el SQL v2.3 (`Area.TIPOS`).
 - Escudo oficial: confirmar que `static/organizacion/img/escudo.png` es el archivo oficial (sin deformarlo ni recolorearlo).
 - Login común y plantilla base compartida son de `core` (Patricio): cuando exista, mover `base.html` y `terriia.css` a `core`.
 - Cabecera: muestra "Acceso global" hasta que `usuario.delegacion` exista (HU19).
@@ -72,14 +78,13 @@ cerrar formularios y panel (UX-05) e inicio con cifras reales. SweetAlert2 y los
 Menú de la Municipalidad (Inicio, Delegaciones, Servicios, Contacto) más las pantallas de acceso,
 en rojo institucional y blanco. Código en `publico.py`, `urls_publico.py` y las plantillas `publico_base.html`,
 `portada.html`, `directorio.html`, `servicios.html`, `contacto.html`, `auth_base.html`, `ingresar.html`,
-`registro.html`, `recuperar.html` y `cambiar_clave.html`; estilos en `css/publico.css`; scripts en `js/auth.js`
+`recuperar.html` y `cambiar_clave.html`; estilos en `css/publico.css`; scripts en `js/auth.js`
 y `js/sesion.js`; fotos en `img/playa.jpg` y `img/municipalidad.jpg`.
 
 | Qué | URL |
 |---|---|
 | Inicio / Delegaciones / Servicios / Contacto | `/`, `/delegaciones/`, `/servicios/`, `/contacto/` |
 | Iniciar sesión | `/ingresar/` (acepta `?next=` solo hacia páginas de este sitio) |
-| Registrarse | `/registro/` |
 | Recuperar contraseña (correo → código de 6 dígitos → nueva contraseña) | `/recuperar/` |
 | Cambiar contraseña (requiere sesión) | `/cambiar-clave/` |
 
@@ -89,14 +94,12 @@ y `js/sesion.js`; fotos en `img/playa.jpg` y `img/municipalidad.jpg`.
 - **Recuperar contraseña y cambiar contraseña son reales**: llaman a los endpoints de `core`
   (`/api/auth/recuperar/solicitar/`, `/verificar/`, `/confirmar/` y `/api/auth/cambiar-clave/`). El código se
   envía por correo (en local sale en la consola del servidor) y tiene vencimiento e intentos limitados.
-- **Registro es una demostración**: valida solo lo visual y **no guarda datos**; `core` no tiene endpoint de
-  registro (los usuarios los crea un Administrador en `/api/usuarios/`).
+- **No hay registro público**: las cuentas las crea el Administrador en `/api/usuarios/`.
 - Los datos de las delegaciones y los servicios están en `datos_directorio.py` y en `SERVICIOS` de `publico.py`
   (solo Las Compañías está completa; las otras 5 dicen "Por completar"; las coordenadas son aproximadas).
 - Pruebas: `tests/test_publico.py` (y `core/tests/test_clave.py` para la recuperación).
 
 ### Lo que falta en `core` (Patricio)
-- Endpoint de registro (hoy es una demostración).
 - `usuario.delegacion` (HU19), para que la cabecera muestre el código y nombre de la delegación activa.
 
 ## Estado de los módulos (para el README de la entrega)
@@ -108,7 +111,6 @@ y `js/sesion.js`; fotos en `img/playa.jpg` y `img/municipalidad.jpg`.
 | Mantenedor Cargos | Operativo | Transversal (sin área) y vigente / no vigente |
 | Login y cierre de sesión | Operativo | Usa `/api/auth/login/` y `/api/auth/logout/` de `core` |
 | Recuperar y cambiar contraseña | Operativo | Endpoints de `core`; correo por consola en local |
-| Registro | Simulado | No guarda datos |
 | Sitio público (inicio, delegaciones, servicios, contacto) | Operativo (solo lectura) | Datos en `datos_directorio.py`; las coordenadas de 5 delegaciones son aproximadas |
 | Cabecera con delegación activa | Pendiente | Muestra «Acceso global» hasta que exista `usuario.delegacion` (HU19) |
 | Prueba INT-ORG-09 (delegación → cargo → funcionario → usuario) | Pendiente | Bloqueada: faltan `Funcionario` y `usuario.delegacion` |

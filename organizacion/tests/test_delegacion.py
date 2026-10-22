@@ -32,7 +32,7 @@ class DelegacionMantenedorTests(APITestCase):
         areas = Area.objects.filter(delegacion=d)
         self.assertEqual(areas.count(), 4)
         self.assertEqual(sorted(a.prioridad for a in areas), [1, 2, 3, 4])
-        self.assertEqual({a.tipo for a in areas}, {t for t, _ in Area.TIPOS})
+        self.assertEqual({a.nombre for a in areas}, {n for n, _ in Area.NOMBRES})
         self.assertEqual(r.data["total_areas"], 4)
         self.assertTrue(
             Auditoria.objects.filter(evento="crear", entidad="delegacion", entidad_id=d.pk).exists()

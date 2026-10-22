@@ -8,8 +8,8 @@
 
   const ESTADOS_ACT = [{ v: 'activa', t: 'Activa' }, { v: 'inactiva', t: 'Inactiva' }];
   const TIPOS_AREA = [
-    { v: 'social', t: 'Social' }, { v: 'territorial', t: 'Territorial' },
-    { v: 'administrativa', t: 'Administrativa' }, { v: 'operativa', t: 'Operativa' },
+    { v: 'Social', t: 'Social' }, { v: 'DISERCO', t: 'DISERCO' },
+    { v: 'Seguridad', t: 'Seguridad' }, { v: 'Organizacion Comunitaria', t: 'Organización Comunitaria' },
   ];
 
   const etiquetaEstado = (activo, si, no) => activo
@@ -36,6 +36,7 @@
         { k: 'codigo', t: 'Código', req: true, max: 10, ayuda: 'Ej.: D01. Se guarda en mayúsculas.' },
         { k: 'estado', t: 'Estado', tipo: 'select', opciones: () => ESTADOS_ACT, defecto: 'activa' },
         { k: 'nombre', t: 'Nombre', req: true, max: 100, ancho: true },
+        { k: 'ambito', t: 'Ámbito', max: 150, ancho: true, ayuda: 'Sector que cubre la delegación (ej.: Centro, Rural, La Antena).' },
         { k: 'direccion', t: 'Dirección', max: 200, ancho: true },
         { k: 'comuna', t: 'Comuna', req: true, max: 80, defecto: 'La Serena' },
       ],
@@ -44,25 +45,25 @@
 
     areas: {
       titulo: 'Áreas', singular: 'área', nuevo: 'Nueva área',
-      subtitulo: 'Las 4 áreas nacen con cada delegación. Use «Nueva área» solo si falta alguna: un tipo y una prioridad por delegación. Si cambia la prioridad a una ya usada, las dos áreas la intercambian.',
+      subtitulo: 'Las 4 áreas nacen con cada delegación. Use «Nueva área» solo si falta alguna: cada área una vez y una prioridad por delegación. Si cambia la prioridad a una ya usada, las dos áreas la intercambian.',
       url: '/api/areas/', pk: 'id_area', archivo: 'areas',
       dependientes: (r) => ({ areas: 0, cargos: r.cargos_vigentes || 0 }),
       campoEstado: 'estado', esActivo: (r) => r.estado === 'activa',
       columnas: [
         { k: 'delegacion_codigo', orden: 'delegacion__codigo', t: 'Delegación', html: (r) => `<span class="codigo">${esc(r.delegacion_codigo)}</span> ${esc(r.delegacion_nombre)}`, excel: (r) => `${r.delegacion_codigo} · ${r.delegacion_nombre}` },
-        { k: 'tipo_texto', orden: 'tipo', t: 'Tipo de área' },
+        { k: 'nombre_texto', orden: 'nombre', t: 'Área' },
         { k: 'prioridad', orden: 'prioridad', t: 'Prioridad', html: (r) => `<span class="etiqueta info">${r.prioridad}</span>` },
         { k: 'estado', orden: 'estado', t: 'Estado', html: (r) => etiquetaEstado(r.estado === 'activa', 'Activa', 'Inactiva'), excel: (r) => r.estado === 'activa' ? 'Activa' : 'Inactiva' },
       ],
       campos: [
         { k: 'delegacion', t: 'Delegación', tipo: 'select', req: true, ancho: true, opciones: () => OPC.delegaciones, vacio: 'Seleccione una delegación' },
-        { k: 'tipo', t: 'Tipo de área', tipo: 'select', req: true, opciones: () => TIPOS_AREA, vacio: 'Seleccione' },
+        { k: 'nombre', t: 'Área', tipo: 'select', req: true, opciones: () => TIPOS_AREA, vacio: 'Seleccione' },
         { k: 'prioridad', t: 'Prioridad (1 a 4)', tipo: 'number', req: true, min: 1, max: 4 },
         { k: 'estado', t: 'Estado', tipo: 'select', opciones: () => ESTADOS_ACT, defecto: 'activa' },
       ],
       filtros: [
         { k: 'delegacion', t: 'Todas las delegaciones', opciones: () => OPC.delegaciones },
-        { k: 'tipo', t: 'Todos los tipos', opciones: () => TIPOS_AREA },
+        { k: 'nombre', t: 'Todas las áreas', opciones: () => TIPOS_AREA },
         { k: 'estado', t: 'Todos los estados', opciones: () => ESTADOS_ACT },
       ],
       cargarOpciones: () => cargarDelegaciones(),
@@ -148,7 +149,7 @@
   }
   async function cargarAreas() {
     const a = await traerTodo('/api/areas/?estado=activa');
-    OPC.areas = a.map((x) => ({ v: String(x.id_area), t: `${x.tipo_texto} — ${x.delegacion_codigo} · ${x.delegacion_nombre}` }));
+    OPC.areas = a.map((x) => ({ v: String(x.id_area), t: `${x.nombre_texto} — ${x.delegacion_codigo} · ${x.delegacion_nombre}` }));
   }
 
   /* ---------------- Listado ---------------- */
@@ -456,7 +457,7 @@
         <section><h3>Áreas y cargos (${d.areas.length} área${d.areas.length === 1 ? '' : 's'})</h3>
           ${d.areas.map((a) => `
             <article class="area-detalle">
-              <header><h3>${esc(a.tipo_texto)} · prioridad ${a.prioridad}</h3>${etiquetaEstado(a.estado === 'activa', 'Activa', 'Inactiva')}</header>
+              <header><h3>${esc(a.nombre_texto)} · prioridad ${a.prioridad}</h3>${etiquetaEstado(a.estado === 'activa', 'Activa', 'Inactiva')}</header>
               ${a.cargos.length
                 ? `<ul>${a.cargos.map((c) => `<li>${esc(c.nombre)} ${c.vigente ? '' : '<em>(no vigente)</em>'}</li>`).join('')}</ul>`
                 : '<p class="sin-cargos">Sin cargos registrados.</p>'}

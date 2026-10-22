@@ -23,6 +23,7 @@ class DelegacionSerializer(serializers.ModelSerializer):
             "id_delegacion",
             "codigo",
             "nombre",
+            "ambito",
             "direccion",
             "comuna",
             "estado",
@@ -72,7 +73,7 @@ class DelegacionSerializer(serializers.ModelSerializer):
 class AreaSerializer(serializers.ModelSerializer):
     delegacion_nombre = serializers.CharField(source="delegacion.nombre", read_only=True)
     delegacion_codigo = serializers.CharField(source="delegacion.codigo", read_only=True)
-    tipo_texto = serializers.CharField(source="get_tipo_display", read_only=True)
+    nombre_texto = serializers.CharField(source="get_nombre_display", read_only=True)
     cargos_vigentes = serializers.SerializerMethodField()
 
     class Meta:
@@ -82,8 +83,8 @@ class AreaSerializer(serializers.ModelSerializer):
             "delegacion",
             "delegacion_codigo",
             "delegacion_nombre",
-            "tipo",
-            "tipo_texto",
+            "nombre",
+            "nombre_texto",
             "prioridad",
             "estado",
             "cargos_vigentes",
@@ -101,7 +102,7 @@ class AreaSerializer(serializers.ModelSerializer):
 
     def validate(self, datos):
         delegacion = datos.get("delegacion", getattr(self.instance, "delegacion", None))
-        tipo = datos.get("tipo", getattr(self.instance, "tipo", None))
+        nombre = datos.get("nombre", getattr(self.instance, "nombre", None))
         prioridad = datos.get("prioridad", getattr(self.instance, "prioridad", None))
         estado = datos.get("estado", getattr(self.instance, "estado", Area.ACTIVA))
 
@@ -127,10 +128,8 @@ class AreaSerializer(serializers.ModelSerializer):
         otras = Area.objects.filter(delegacion=delegacion)
         if self.instance:
             otras = otras.exclude(pk=self.instance.pk)
-        if otras.filter(tipo=tipo).exists():
-            raise serializers.ValidationError(
-                {"tipo": "La delegación ya tiene un área de este tipo."}
-            )
+        if otras.filter(nombre=nombre).exists():
+            raise serializers.ValidationError({"nombre": "La delegación ya tiene esa área."})
         if otras.filter(prioridad=prioridad).exists():
             # Al editar un área de la misma delegación la prioridad se INTERCAMBIA con la del
             # área que la tenía (update). Al crear, o al mover un área de delegación, se rechaza.

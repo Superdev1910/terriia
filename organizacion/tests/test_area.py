@@ -21,7 +21,7 @@ class AreaMantenedorTests(APITestCase):
     def datos(self, **extra):
         base = {
             "delegacion": self.delegacion.pk,
-            "tipo": Area.SOCIAL,
+            "nombre": Area.SOCIAL,
             "prioridad": 1,
         }
         base.update(extra)
@@ -32,7 +32,7 @@ class AreaMantenedorTests(APITestCase):
         r = self.client.post(URL, self.datos())
         self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
         self.assertEqual(r.data["delegacion_codigo"], "D01")
-        self.assertEqual(r.data["tipo_texto"], "Social")
+        self.assertEqual(r.data["nombre_texto"], "Social")
         self.assertTrue(
             Auditoria.objects.filter(
                 evento="crear", entidad="area", entidad_id=r.data["id_area"]
@@ -41,32 +41,32 @@ class AreaMantenedorTests(APITestCase):
 
     # 2. editar
     def test_editar_prioridad(self):
-        a = Area.objects.create(delegacion=self.delegacion, tipo="social", prioridad=1)
+        a = Area.objects.create(delegacion=self.delegacion, nombre="Social", prioridad=1)
         r = self.client.patch(f"{URL}{a.pk}/", {"prioridad": 3})
         self.assertEqual(r.status_code, status.HTTP_200_OK, r.data)
         a.refresh_from_db()
         self.assertEqual(a.prioridad, 3)
 
     def test_editar_sin_chocar_consigo_misma(self):
-        a = Area.objects.create(delegacion=self.delegacion, tipo="social", prioridad=1)
-        r = self.client.patch(f"{URL}{a.pk}/", {"tipo": "social", "prioridad": 1})
+        a = Area.objects.create(delegacion=self.delegacion, nombre="Social", prioridad=1)
+        r = self.client.patch(f"{URL}{a.pk}/", {"nombre": "Social", "prioridad": 1})
         self.assertEqual(r.status_code, status.HTTP_200_OK, r.data)
 
     # 3. duplicado o inválido
-    def test_tipo_repetido_en_la_delegacion(self):
-        Area.objects.create(delegacion=self.delegacion, tipo="social", prioridad=1)
+    def test_area_repetida_en_la_delegacion(self):
+        Area.objects.create(delegacion=self.delegacion, nombre="Social", prioridad=1)
         r = self.client.post(URL, self.datos(prioridad=2))
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["campo"], "tipo")
+        self.assertEqual(r.data["campo"], "nombre")
 
     def test_prioridad_repetida_en_la_delegacion(self):
-        Area.objects.create(delegacion=self.delegacion, tipo="social", prioridad=1)
-        r = self.client.post(URL, self.datos(tipo="territorial"))
+        Area.objects.create(delegacion=self.delegacion, nombre="Social", prioridad=1)
+        r = self.client.post(URL, self.datos(nombre="DISERCO"))
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["campo"], "prioridad")
 
-    def test_mismo_tipo_y_prioridad_en_otra_delegacion_es_valido(self):
-        Area.objects.create(delegacion=self.delegacion, tipo="social", prioridad=1)
+    def test_misma_area_y_prioridad_en_otra_delegacion_es_valido(self):
+        Area.objects.create(delegacion=self.delegacion, nombre="Social", prioridad=1)
         otra = Delegacion.objects.create(codigo="D02", nombre="Norte")
         otra.areas.all().delete()
         r = self.client.post(URL, self.datos(delegacion=otra.pk))
@@ -78,17 +78,17 @@ class AreaMantenedorTests(APITestCase):
             self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST, valor)
             self.assertEqual(r.data["campo"], "prioridad")
 
-    def test_tipo_inexistente_y_delegacion_inexistente(self):
-        r = self.client.post(URL, self.datos(tipo="otro"))
+    def test_area_inexistente_y_delegacion_inexistente(self):
+        r = self.client.post(URL, self.datos(nombre="otro"))
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["campo"], "tipo")
+        self.assertEqual(r.data["campo"], "nombre")
         r = self.client.post(URL, self.datos(delegacion=9999))
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["campo"], "delegacion")
 
     # 4. desactivar
     def test_desactivar(self):
-        a = Area.objects.create(delegacion=self.delegacion, tipo="social", prioridad=1)
+        a = Area.objects.create(delegacion=self.delegacion, nombre="Social", prioridad=1)
         r = self.client.delete(f"{URL}{a.pk}/")
         self.assertEqual(r.status_code, status.HTTP_204_NO_CONTENT)
         a.refresh_from_db()
@@ -104,9 +104,9 @@ class AreaMantenedorTests(APITestCase):
     # listado
     def test_filtros_y_busqueda(self):
         otra = Delegacion.objects.create(codigo="D02", nombre="Norte")  # con sus 4 áreas
-        Area.objects.create(delegacion=self.delegacion, tipo="social", prioridad=1)
+        Area.objects.create(delegacion=self.delegacion, nombre="Social", prioridad=1)
         self.assertEqual(self.client.get(URL, {"delegacion": otra.pk}).data["count"], 4)
-        self.assertEqual(self.client.get(URL, {"tipo": "social"}).data["count"], 2)
+        self.assertEqual(self.client.get(URL, {"nombre": "Social"}).data["count"], 2)
         self.assertEqual(self.client.get(URL, {"search": "norte"}).data["count"], 4)
         self.assertEqual(self.client.get(URL, {"search": "d01"}).data["count"], 1)
 
@@ -161,6 +161,6 @@ class AreaIntercambioPrioridadTests(APITestCase):
 
     def test_crear_con_prioridad_usada_sigue_rechazado(self):
         r = self.client.post(
-            URL, {"delegacion": self.delegacion.pk, "tipo": "social", "prioridad": 1}
+            URL, {"delegacion": self.delegacion.pk, "nombre": "Social", "prioridad": 1}
         )
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)

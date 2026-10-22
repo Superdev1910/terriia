@@ -114,7 +114,7 @@ class DetalleYResumenTests(APITestCase):
     def setUp(self):
         self.client.force_authenticate(crear_admin())
         self.d = Delegacion.objects.create(codigo="D01", nombre="Centro")
-        social = self.d.areas.get(tipo="social")
+        social = self.d.areas.get(nombre="Social")
         Cargo.objects.create(nombre="Trabajador social", area=social)
         Cargo.objects.create(nombre="Asistente social", area=social)
         Cargo.objects.create(nombre="Secretaria", area=None)
@@ -125,7 +125,7 @@ class DetalleYResumenTests(APITestCase):
         self.assertEqual(r.data["codigo"], "D01")
         self.assertEqual([a["prioridad"] for a in r.data["areas"]], [1, 2, 3, 4])
         social = r.data["areas"][0]
-        self.assertEqual(social["tipo"], "social")
+        self.assertEqual(social["nombre"], "Social")
         nombres = [c["nombre"] for c in social["cargos"]]
         self.assertEqual(nombres, ["Asistente social", "Trabajador social"])
         self.assertEqual(r.data["areas"][1]["cargos"], [])
@@ -138,7 +138,7 @@ class DetalleYResumenTests(APITestCase):
         self.assertEqual(self.client.get(f"{DELEGACIONES}{self.d.pk}/detalle/").status_code, 403)
 
     def test_resumen(self):
-        self.client.delete(f"{AREAS}{self.d.areas.get(tipo='operativa').pk}/")
+        self.client.delete(f"{AREAS}{self.d.areas.get(nombre='Organizacion Comunitaria').pk}/")
         r = self.client.get(RESUMEN)
         self.assertEqual(r.status_code, status.HTTP_200_OK)
         self.assertEqual(r.data["delegaciones"], {"total": 1, "activas": 1, "inactivas": 0})

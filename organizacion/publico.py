@@ -1,8 +1,7 @@
 """Sitio público de la Municipalidad y pantallas de acceso (parte visual de Brian).
 
-- Inicio de sesión: usa la API real de core (/api/auth/login/).
-- Registro, recuperar contraseña (código al correo) y cambiar contraseña: demostración visual,
-  no guardan datos ni envían correos. Los endpoints reales los debe hacer core (Patricio).
+- Inicio de sesión, recuperar y cambiar contraseña: usan la API real de core (/api/auth/...).
+- No hay registro público: las cuentas las crea el Administrador (/api/usuarios/).
 """
 
 from django.contrib.auth.views import redirect_to_login
@@ -101,11 +100,6 @@ def ingresar(request):
     if not url_has_allowed_host_and_scheme(siguiente, allowed_hosts={request.get_host()}):
         siguiente = ""  # solo se acepta volver a páginas de este mismo sitio
     return render(request, "organizacion/ingresar.html", {"siguiente": siguiente})
-
-
-@ensure_csrf_cookie
-def registro(request):
-    return render(request, "organizacion/registro.html")
 
 
 @ensure_csrf_cookie

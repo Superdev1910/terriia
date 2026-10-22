@@ -15,7 +15,7 @@ class CargoMantenedorTests(APITestCase):
     def setUp(self):
         self.client.force_authenticate(crear_admin())
         self.delegacion = Delegacion.objects.create(codigo="D01", nombre="Centro")
-        self.area = self.delegacion.areas.get(tipo="social")
+        self.area = self.delegacion.areas.get(nombre="Social")
 
     # 1. crear
     def test_crear_con_area(self):
@@ -71,7 +71,7 @@ class CargoMantenedorTests(APITestCase):
 
     def test_mismo_nombre_en_otra_area_es_valido(self):
         Cargo.objects.create(nombre="Conductor", area=self.area)
-        otra = self.delegacion.areas.get(tipo="territorial")
+        otra = self.delegacion.areas.get(nombre="DISERCO")
         r = self.client.post(URL, {"nombre": "Conductor", "area": otra.pk})
         self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
 

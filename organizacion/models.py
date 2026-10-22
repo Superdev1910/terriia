@@ -12,6 +12,8 @@ class Delegacion(models.Model):
     id_delegacion = models.AutoField(primary_key=True)
     codigo = models.CharField(max_length=10, unique=True)
     nombre = models.CharField(max_length=100, unique=True)
+    ambito = models.CharField(max_length=150, blank=True, default="")  # SQL v2.3
+    # Extras (v2.4): código corto, dirección y comuna para el directorio y las pantallas.
     direccion = models.CharField(max_length=200, blank=True, default="")
     comuna = models.CharField(max_length=80, default="La Serena")
     estado = models.CharField(max_length=8, choices=ESTADOS, default=ACTIVA)
@@ -27,28 +29,28 @@ class Delegacion(models.Model):
         with transaction.atomic():
             super().save(*args, **kwargs)
             if nueva:
-                for prioridad, (tipo, _) in enumerate(Area.TIPOS, start=1):
-                    Area.objects.create(delegacion=self, tipo=tipo, prioridad=prioridad)
+                for prioridad, (nombre, _) in enumerate(Area.NOMBRES, start=1):
+                    Area.objects.create(delegacion=self, nombre=nombre, prioridad=prioridad)
 
     def __str__(self):
         return f"{self.codigo} · {self.nombre}"
 
 
 class Area(models.Model):
-    """Tabla `area`. Una sola área de cada tipo por delegación; prioridad 1 a 4 sin repetir."""
+    """Tabla `area`. Una sola área de cada nombre por delegación; prioridad 1 a 4 sin repetir."""
 
-    SOCIAL, TERRITORIAL, ADMINISTRATIVA, OPERATIVA = (
-        "social",
-        "territorial",
-        "administrativa",
-        "operativa",
+    # Las 4 áreas del cliente (SQL v2.3: ENUM de area.nombre).
+    SOCIAL, DISERCO, SEGURIDAD, ORG_COMUNITARIA = (
+        "Social",
+        "DISERCO",
+        "Seguridad",
+        "Organizacion Comunitaria",
     )
-    # SUPUESTO: los 4 tipos no están en los documentos; confirmar con el SQL v2.3.
-    TIPOS = [
+    NOMBRES = [
         (SOCIAL, "Social"),
-        (TERRITORIAL, "Territorial"),
-        (ADMINISTRATIVA, "Administrativa"),
-        (OPERATIVA, "Operativa"),
+        (DISERCO, "DISERCO"),
+        (SEGURIDAD, "Seguridad"),
+        (ORG_COMUNITARIA, "Organización Comunitaria"),
     ]
     ACTIVA, INACTIVA = "activa", "inactiva"
     ESTADOS = [(ACTIVA, "Activa"), (INACTIVA, "Inactiva")]
@@ -60,24 +62,25 @@ class Area(models.Model):
         db_column="id_delegacion",
         related_name="areas",
     )
-    tipo = models.CharField(max_length=15, choices=TIPOS)
+    nombre = models.CharField(max_length=30, choices=NOMBRES)
     prioridad = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(4)]
     )
+    # Extra (v2.4): permite desactivar el área en vez de borrarla.
     estado = models.CharField(max_length=8, choices=ESTADOS, default=ACTIVA)
 
     class Meta:
         db_table = "area"
         ordering = ["delegacion", "prioridad"]
         constraints = [
-            models.UniqueConstraint(fields=["delegacion", "tipo"], name="uq_area_delegacion_tipo"),
+            models.UniqueConstraint(fields=["delegacion", "nombre"], name="uq_area_delegacion"),
             models.UniqueConstraint(
                 fields=["delegacion", "prioridad"], name="uq_area_delegacion_prioridad"
             ),
         ]
 
     def __str__(self):
-        return f"{self.get_tipo_display()} ({self.delegacion.codigo})"
+        return f"{self.get_nombre_display()} ({self.delegacion.codigo})"
 
 
 class Cargo(models.Model):
@@ -93,7 +96,7 @@ class Cargo(models.Model):
         related_name="cargos",
     )
     nombre = models.CharField(max_length=100)
-    descripcion = models.CharField(max_length=255, blank=True, default="")
+    descripcion = models.CharField(max_length=255, blank=True, default="")  # extra (v2.4)
     vigente = models.BooleanField(default=True)
 
     class Meta:

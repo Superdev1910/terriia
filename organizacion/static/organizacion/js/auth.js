@@ -1,4 +1,4 @@
-// Pantallas de acceso: ingresar, recuperar y cambiar contraseña (reales); registro (demostración).
+// Pantallas de acceso: ingresar, recuperar y cambiar contraseña (reales).
 (function () {
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
@@ -116,22 +116,6 @@
         alerta('No hay conexión con el servidor.');
       }
       boton.disabled = false; texto.textContent = 'Ingresar';
-    });
-  }
-
-  // ---- Registro (demostración) ----
-  const registro = $('#formRegistro');
-  if (registro) {
-    registro.addEventListener('submit', e => {
-      e.preventDefault();
-      limpiar(registro);
-      if (!requeridos(registro)) return;
-      if (!claveValida($('#clave'), $('#clave2'))) return;
-      Swal.fire({
-        icon: 'success', title: 'Cuenta creada',
-        text: 'Demostración: esta versión visual todavía no guarda la cuenta.',
-        confirmButtonText: 'Ir a iniciar sesión', confirmButtonColor: '#ad0000'
-      }).then(() => { window.location.href = '/ingresar/'; });
     });
   }
 
