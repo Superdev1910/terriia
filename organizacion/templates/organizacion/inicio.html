@@ -1,0 +1,39 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Inicio{% endblock %}
+{% block contenido %}
+<div class="encabezado-pagina">
+  <div>
+    <h1>Organización</h1>
+    <p class="subtitulo">Administre las delegaciones, sus áreas y los cargos del municipio.</p>
+  </div>
+</div>
+
+<div class="tarjetas">
+  <a class="tarjeta" href="{% url 'org_delegaciones' %}">
+    <i class="bi bi-buildings"></i>
+    <h2>Delegaciones</h2>
+    <p>Código, nombre, dirección y comuna. Al crear una delegación se generan sus 4 áreas automáticamente.</p>
+    <p class="cifras" id="cifrasDelegaciones" aria-live="polite">Cargando cifras…</p>
+    <span class="ir">Administrar <i class="bi bi-arrow-right"></i></span>
+  </a>
+  <a class="tarjeta" href="{% url 'org_areas' %}">
+    <i class="bi bi-diagram-3"></i>
+    <h2>Áreas</h2>
+    <p>Las 4 áreas (Social, DISERCO, Seguridad y Organización Comunitaria) en cada delegación, con prioridad de 1 a 4 sin repetir.</p>
+    <p class="cifras" id="cifrasAreas" aria-live="polite">Cargando cifras…</p>
+    <span class="ir">Administrar <i class="bi bi-arrow-right"></i></span>
+  </a>
+  <a class="tarjeta" href="{% url 'org_cargos' %}">
+    <i class="bi bi-person-badge"></i>
+    <h2>Cargos</h2>
+    <p>Cargos por área o transversales, marcados como vigentes o no vigentes.</p>
+    <p class="cifras" id="cifrasCargos" aria-live="polite">Cargando cifras…</p>
+    <span class="ir">Administrar <i class="bi bi-arrow-right"></i></span>
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'organizacion/js/inicio.js' %}"></script>
+{% endblock %}

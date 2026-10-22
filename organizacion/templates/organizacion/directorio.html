@@ -1,0 +1,109 @@
+{% extends "organizacion/publico_base.html" %}
+{% load l10n %}
+{% block titulo %}Delegaciones Municipales{% endblock %}
+
+{% block head %}
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  .dir-migas { font-size: .8rem; color: var(--gris-700); margin-bottom: .75rem; }
+  .dir-titulo { font-size: 1.5rem; border-left: 5px solid var(--rojo); padding-left: .6rem; margin-bottom: .5rem; }
+  .dir-intro { color: var(--gris-700); max-width: 65ch; margin: 0 0 1.25rem; }
+  .dir-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
+
+  .tarjeta-del { background: var(--blanco); border: 1px solid var(--gris-300); border-radius: var(--radio);
+                 box-shadow: var(--sombra); overflow: hidden; display: flex; flex-direction: column; }
+  .tarjeta-del h2 { background: var(--rojo); color: var(--blanco); font-size: 1.05rem; padding: .6rem .9rem; }
+  .tarjeta-del .mapa { height: 190px; margin: .75rem .9rem 0; border: 1px solid var(--gris-300);
+                       border-radius: 6px; z-index: 0; }
+  .mapa-vacio { display: flex; align-items: center; justify-content: center; gap: .4rem; background: var(--gris-50); color: var(--gris-700); font-size: .9rem; }
+  .tarjeta-del .datos { padding: .75rem .9rem; margin: 0; flex: 1; font-size: .9rem; }
+  .tarjeta-del .datos p { margin: 0 0 .35rem; }
+  .tarjeta-del .datos .encargado { border-bottom: 1px solid var(--gris-300); padding-bottom: .5rem; margin-bottom: .5rem; }
+  .tarjeta-del .datos i { color: var(--rojo); margin-right: .3rem; }
+  .tarjeta-del .pie { padding: .6rem .9rem .9rem; background: var(--gris-50); border-top: 1px solid var(--gris-300); }
+  .btn-info { width: 100%; background: var(--rojo); color: var(--blanco); border: 0; border-radius: 6px;
+              padding: .55rem; font: inherit; font-weight: bold; cursor: pointer; }
+  .btn-info:hover { background: var(--rojo-hover); }
+
+  .info-modal { text-align: left; font-size: .92rem; max-height: 55vh; overflow-y: auto; padding-right: .5rem; }
+  .info-modal p { margin: 0 0 .75rem; }
+  .info-modal ul { margin: 0; padding-left: 1.25rem; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<p class="dir-migas"><a href="{% url 'pub_inicio' %}">Inicio</a> / Delegaciones municipales</p>
+<h1 class="dir-titulo">Delegaciones Municipales</h1>
+<p class="dir-intro">
+  Las delegaciones acercan la Municipalidad de La Serena a los territorios y sus comunidades.
+  Aquí puedes ver quién las encarga, dónde están y cómo contactarlas.
+</p>
+
+<div class="dir-rejilla">
+  {% for d in delegaciones %}
+  <article class="tarjeta-del">
+    <h2>{{ d.nombre }}</h2>
+
+    {% if d.lat is not None and d.lng is not None %}
+    <div class="mapa" role="img" aria-label="Mapa de la delegación {{ d.nombre }}"
+         data-lat="{{ d.lat|unlocalize }}" data-lng="{{ d.lng|unlocalize }}" data-nombre="{{ d.nombre }}"></div>
+    {% else %}
+    <div class="mapa mapa-vacio"><i class="bi bi-geo-alt" aria-hidden="true"></i> Ubicación por confirmar</div>
+    {% endif %}
+
+    <div class="datos">
+      <p class="encargado"><strong>Encargado:</strong><br>{{ d.encargado }}</p>
+      <p><i class="bi bi-geo-alt-fill" aria-hidden="true"></i>{{ d.direccion }}</p>
+      <p><i class="bi bi-envelope-fill" aria-hidden="true"></i><a href="mailto:{{ d.correo }}">{{ d.correo }}</a></p>
+      <p><i class="bi bi-telephone-fill" aria-hidden="true"></i>{{ d.telefonos }}</p>
+    </div>
+
+    <div class="pie">
+      <button type="button" class="btn-info" data-info="info-{{ d.codigo }}" data-nombre="{{ d.nombre }}">
+        Información de la Delegación
+      </button>
+    </div>
+
+    {# Texto que se muestra en la ventana; queda oculto hasta que se presiona el botón #}
+    <div hidden id="info-{{ d.codigo }}">
+      {% for parrafo in d.informacion %}<p>{{ parrafo }}</p>{% endfor %}
+      {% if d.unidades %}
+        <ul>{% for u in d.unidades %}<li>{{ u }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // 1) Un mapa por tarjeta, centrado en sus coordenadas
+  document.querySelectorAll('.mapa[data-lat]').forEach(el => {
+    const lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
+    const mapa = L.map(el, { scrollWheelZoom: false }).setView([lat, lng], 15);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap',
+      referrerPolicy: 'strict-origin-when-cross-origin'  // OpenStreetMap exige Referer
+    }).addTo(mapa);
+    L.marker([lat, lng]).addTo(mapa).bindPopup(el.dataset.nombre);
+  });
+
+  // 2) El botón abre una ventana (SweetAlert2) con el texto oculto de esa tarjeta
+  document.querySelectorAll('.btn-info').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const texto = document.getElementById(boton.dataset.info).innerHTML;
+      Swal.fire({
+        title: boton.dataset.nombre,
+        html: '<div class="info-modal">' + texto + '</div>',
+        width: 700,
+        confirmButtonText: 'Cerrar',
+        confirmButtonColor: '#ad0000'
+      });
+    });
+  });
+</script>
+{% endblock %}
