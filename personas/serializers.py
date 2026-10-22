@@ -3,7 +3,8 @@ from rest_framework import serializers
 
 from core.validators import normalizar_rut, rut_es_valido
 
-from .models import Usuario
+from .models import Usuario, Funcionario
+from organizacion.models import Delegacion
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
@@ -68,3 +69,42 @@ class UsuarioSerializer(serializers.ModelSerializer):
             instancia.set_password(password)
         instancia.save()
         return instancia
+
+
+class FuncionarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Funcionario
+        fields = ["id_funcionario", "identificador_inst", "nombre", "cargo", "delegacion", "estado"]
+
+    def validate_identificador_inst(self, valor):
+        valor = valor.strip()
+        if not valor:
+            raise serializers.ValidationError(
+                "EL identificador institucional es un campo obligatorio."
+            )
+        existe = Funcionario.objects.filter(identificador_inst__iexact=valor)
+        if self.instance:
+            existe = existe.exclude(pk=self.instance.pk)
+        if existe.exists():
+            raise serializers.ValidationError(
+                "Ya existe un funcionario con este identificador institucional."
+            )
+        return valor
+
+    def validate_nombre(self, valor):
+        valor = valor.strip()
+        if not valor:
+            raise serializers.ValidationError("El nombre es un campo obligatorio.")
+        return valor
+
+    def validate_delegacion(self, delegacion):
+        cambio = not self.instance or self.instance.delegacion_id != delegacion.pk
+        if cambio and delegacion.estado != Delegacion.ACTIVA:
+            raise serializers.ValidationError("La delegación que seleccióno no está activa.")
+        return delegacion
+
+    def validate_cargo(self, cargo):
+        cambio = not self.instance or self.instance.cargo_id != cargo.pk
+        if cambio and not cargo.vigente:
+            raise serializers.ValidationError("El cargo que seleccióno no está vigente.")
+        return cargo
