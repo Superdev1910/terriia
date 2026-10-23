@@ -21,6 +21,9 @@ MENU = [
     ("org_delegaciones", "Delegaciones", "bi-buildings"),
     ("org_areas", "Áreas", "bi-diagram-3"),
     ("org_cargos", "Cargos", "bi-person-badge"),
+    ("territorio_vecinos", "Vecinos", "bi-people"),
+    ("territorio_territorios", "Territorios", "bi-map"),
+    ("territorio_juntas", "Juntas de vecinos", "bi-houses"),
 ]
 
 

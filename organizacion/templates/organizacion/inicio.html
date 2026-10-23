@@ -31,6 +31,24 @@
     <p class="cifras" id="cifrasCargos" aria-live="polite">Cargando cifras…</p>
     <span class="ir">Administrar <i class="bi bi-arrow-right"></i></span>
   </a>
+  <a class="tarjeta" href="{% url 'territorio_vecinos' %}">
+    <i class="bi bi-people"></i>
+    <h2>Vecinos</h2>
+    <p>Registro y administración de los vecinos de la Municipalidad de La Serena.</p>
+    <span class="ir">Administrar <i class="bi bi-arrow-right"></i></span>
+  </a>
+  <a class="tarjeta" href="{% url 'territorio_territorios' %}">
+    <i class="bi bi-map"></i>
+    <h2>Territorios</h2>
+    <p>Administración de territorios asociados a sus delegaciones.</p>
+    <span class="ir">Administrar <i class="bi bi-arrow-right"></i></span>
+  </a>
+  <a class="tarjeta" href="{% url 'territorio_juntas' %}">
+    <i class="bi bi-houses"></i>
+    <h2>Juntas de vecinos</h2>
+    <p>Registro y administración de las juntas de vecinos por territorio.</p>
+    <span class="ir">Administrar <i class="bi bi-arrow-right"></i></span>
+  </a>
 </div>
 {% endblock %}
 
