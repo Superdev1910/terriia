@@ -1,0 +1,56 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Roles{% endblock %}
+{% block contenido %}
+<div class="encabezado-pagina">
+  <div>
+    <h1>Roles</h1>
+    <p class="subtitulo">Los 6 roles del sistema no se renombran ni se desactivan; solo se edita su descripción.</p>
+  </div>
+  <div class="acciones-pagina">
+    <button class="btn btn-borde" id="btnExcel"><i class="bi bi-file-earmark-excel"></i> Exportar a Excel</button>
+    <button class="btn btn-primario" id="btnNuevo"><i class="bi bi-plus-lg"></i> Nuevo rol</button>
+  </div>
+</div>
+<section class="panel" aria-label="Listado de roles">
+  <form class="filtros" id="filtros" role="search" onsubmit="return false">
+    <label class="campo-buscar"><span class="sr">Buscar</span>
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input type="search" id="buscar" placeholder="Buscar por nombre o descripción…" autocomplete="off">
+    </label>
+    <div class="filtros-extra">
+      <select id="filtroEstado" aria-label="Filtrar por estado">
+        <option value="">Todos los estados</option>
+        <option value="true">Activos</option>
+        <option value="false">Inactivos</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-texto" id="btnLimpiar"><i class="bi bi-x-circle"></i> Limpiar</button>
+  </form>
+  <div class="tabla-scroll"><table class="tabla"><thead><tr>
+    <th>Nombre</th><th>Descripción</th><th>Usuarios con este rol</th><th>Tipo</th><th>Estado</th><th class="acciones">Acciones</th>
+  </tr></thead><tbody id="cuerpoTabla"></tbody></table></div>
+  <div id="estado" class="estado" role="status" aria-live="polite"></div>
+  <div class="pie-tabla"><span id="total" class="total"></span><nav class="paginador" id="paginador" aria-label="Paginación"></nav></div>
+</section>
+<div class="modal-fondo" id="modal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+  <div class="modal-cab"><h2 id="modalTitulo"></h2><button class="btn-cerrar" id="modalCerrar" type="button" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button></div>
+  <form id="formulario" novalidate>
+    <div class="modal-cuerpo">
+      <label class="campo ancho"><span>Nombre <span class="oblig">*</span></span>
+        <input name="nombre" maxlength="50" required>
+        <small class="ayuda" id="ayudaNombre" hidden>Rol del sistema: los permisos lo usan por nombre, no se puede renombrar.</small>
+      </label>
+      <label class="campo ancho"><span>Descripción</span>
+        <textarea name="descripcion" rows="3" maxlength="255"></textarea>
+      </label>
+    </div>
+    <p class="nota-oblig"><span class="oblig">*</span> Campo obligatorio</p>
+    <div class="modal-pie"><button class="btn btn-borde" id="btnCancelar" type="button">Cancelar</button><button class="btn btn-primario" type="submit">Guardar</button></div>
+  </form>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="{% static 'core/js/roles.js' %}?v=20261023-1"></script>
+{% endblock %}

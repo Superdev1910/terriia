@@ -9,7 +9,9 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from . import auditoria
+from .models import Rol
 from .permissions import IsAdministrador
+from .serializers import RolSerializer
 
 
 class MantenedorViewSet(viewsets.ModelViewSet):
@@ -78,6 +80,23 @@ class MantenedorViewSet(viewsets.ModelViewSet):
                 nuevo=auditoria.foto(instancia),
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RolViewSet(MantenedorViewSet):
+    """
+    Mantenedor de roles. Sin DELETE: se desactiva con PATCH {"activo": false}, así pasa por
+    RolSerializer, que impide renombrar o desactivar los 6 roles del sistema.
+    Un rol desactivado no bloquea el login de quienes ya lo tienen (el login solo mira
+    usuario.estado); lo que ya no se puede es asignarlo (UsuarioSerializer.validate_rol).
+    """
+
+    # order_by explícito: con GROUP BY (annotate + Count) Django no aplica Meta.ordering.
+    queryset = Rol.objects.annotate(cantidad_usuarios=models.Count("usuario")).order_by("id_rol")
+    serializer_class = RolSerializer
+    search_fields = ["nombre", "descripcion"]
+    filterset_fields = ["activo"]
+    campo_estado = "activo"
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
 
 # --- Sesión (login con django.contrib.auth) --------------------------------

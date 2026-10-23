@@ -25,6 +25,7 @@ MENU_SECCIONES = [
         ],
     ),
     ("Territorio", MENU),
+    ("Administración", [("core_roles", "Roles", "bi-shield-lock")]),
 ]
 
 

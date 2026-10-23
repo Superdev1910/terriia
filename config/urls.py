@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/", include("territorio.urls")),
     path("organizacion/", include("organizacion.urls_pantallas")),  # pantallas HTML (Brian)
     path("territorio/", include("territorio.urls_pantallas")),
+    path("core/", include("core.urls_pantallas")),  # pantalla de roles (Patricio)
     path("api/", include("metas.urls")),
     path("api-auth/", include("rest_framework.urls")),  # login de la API navegable
     path("", include("organizacion.urls_publico")),  # sitio público + acceso (Brian)
