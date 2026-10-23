@@ -1,0 +1,172 @@
+<mxfile host="app.diagrams.net" modified="2026-10-23T05:30:00.000Z" agent="Mozilla/5.0" version="21.0.0" type="device">
+  <diagram id="terriia-componentes" name="Diagrama de Componentes TerriIA">
+    <mxGraphModel dx="1422" dy="880" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1350" pageHeight="950" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TITULO GENERAL -->
+        <mxCell id="title" value="TerriIA — Diagrama de Componentes del Backend Django (SCRUM-56)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#AD0000;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="325" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Estructura por Capas Arquitectónicas, Aplicaciones Django e Interfaces Provistas/Requeridas" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#555555;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="375" y="55" width="600" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ACTORES EXTERNOS -->
+        <!-- Navegador Web -->
+        <mxCell id="ext_web" value="&lt;b&gt;Navegador Web&lt;/b&gt;&lt;br&gt;SPA / Web Municipal" style="shape=rect;whiteSpace=wrap;html=1;rounded=1;fillColor=#F8F9FA;strokeColor=#333333;fontFamily=Arial;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="140" y="80" width="160" height="50" as="geometry" />
+        </mxCell>
+        <!-- App Movil -->
+        <mxCell id="ext_mobile" value="&lt;b&gt;App Móvil TerriIA&lt;/b&gt;&lt;br&gt;Verificadores Terreno" style="shape=rect;whiteSpace=wrap;html=1;rounded=1;fillColor=#F8F9FA;strokeColor=#333333;fontFamily=Arial;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="80" width="160" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- CAPAS CONTENEDORAS (SWIMLANES) -->
+        <!-- Capa 1: Presentacion -->
+        <mxCell id="layer_pres" value="CAPA DE PRESENTACIÓN (templates/ y static/ de cada app)" style="swimlane;startSize=25;fillColor=#F5F5F5;strokeColor=#CCCCCC;fontFamily=Arial;fontSize=11;fontStyle=1;fontColor=#333333;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="50" y="160" width="1250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="pres_core" value="&lt;b&gt;UI Core&lt;/b&gt;&lt;br&gt;templates/core/&lt;br&gt;login, recuperar clave" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#AD0000;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_pres">
+          <mxGeometry x="30" y="35" width="160" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="pres_org" value="&lt;b&gt;UI Organización&lt;/b&gt;&lt;br&gt;templates/organizacion/&lt;br&gt;delegacion, area, cargo" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#AD0000;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_pres">
+          <mxGeometry x="270" y="35" width="170" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="pres_personas" value="&lt;b&gt;UI Personas&lt;/b&gt;&lt;br&gt;templates/personas/&lt;br&gt;usuario, funcionario" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#AD0000;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_pres">
+          <mxGeometry x="520" y="35" width="170" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="pres_territorio" value="&lt;b&gt;UI Territorio&lt;/b&gt;&lt;br&gt;templates/territorio/&lt;br&gt;vecino, territorio, JJVV" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#AD0000;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_pres">
+          <mxGeometry x="770" y="35" width="170" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="pres_metas" value="&lt;b&gt;UI Metas&lt;/b&gt;&lt;br&gt;templates/metas/&lt;br&gt;periodo, item, meta" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#AD0000;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_pres">
+          <mxGeometry x="1020" y="35" width="170" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Capa 2: Aplicacion -->
+        <mxCell id="layer_app" value="CAPA DE APLICACIÓN — CONTROLADORES Y SERIALIZADORES (views.py y serializers.py)" style="swimlane;startSize=25;fillColor=#FAFAFA;strokeColor=#CCCCCC;fontFamily=Arial;fontSize=11;fontStyle=1;fontColor=#333333;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="50" y="290" width="1250" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="app_core" value="&amp;laquo;app&amp;raquo;&lt;br&gt;&lt;b&gt;core.views &amp;amp; serializers&lt;/b&gt;&lt;br&gt;Login, ResetClave, Audit" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=11;" vertex="1" parent="layer_app">
+          <mxGeometry x="30" y="45" width="180" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="app_org" value="&amp;laquo;app&amp;raquo;&lt;br&gt;&lt;b&gt;organizacion.views&lt;/b&gt;&lt;br&gt;DelegacionViewSet, AreaViewSet, CargoViewSet" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_app">
+          <mxGeometry x="270" y="45" width="190" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="app_personas" value="&amp;laquo;app&amp;raquo;&lt;br&gt;&lt;b&gt;personas.views&lt;/b&gt;&lt;br&gt;UsuarioViewSet,&lt;br&gt;FuncionarioViewSet" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_app">
+          <mxGeometry x="520" y="45" width="180" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="app_territorio" value="&amp;laquo;app&amp;raquo;&lt;br&gt;&lt;b&gt;territorio.views&lt;/b&gt;&lt;br&gt;VecinoViewSet,&lt;br&gt;TerritorioViewSet" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_app">
+          <mxGeometry x="760" y="45" width="180" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="app_metas" value="&amp;laquo;app&amp;raquo;&lt;br&gt;&lt;b&gt;metas.views&lt;/b&gt;&lt;br&gt;PeriodoViewSet, ItemViewSet,&lt;br&gt;MetaDelegacionViewSet, MetaViewSet" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_app">
+          <mxGeometry x="1000" y="45" width="220" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Capa 3: Dominio -->
+        <mxCell id="layer_dom" value="CAPA DE DOMINIO — MODELOS Y ENTIDADES (models.py)" style="swimlane;startSize=25;fillColor=#F5F5F5;strokeColor=#CCCCCC;fontFamily=Arial;fontSize=11;fontStyle=1;fontColor=#333333;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="50" y="460" width="1250" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="dom_core" value="&amp;laquo;modelos&amp;raquo;&lt;br&gt;&lt;b&gt;core.models&lt;/b&gt;&lt;br&gt;Rol, Auditoria" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=11;" vertex="1" parent="layer_dom">
+          <mxGeometry x="30" y="45" width="180" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="dom_org" value="&amp;laquo;modelos&amp;raquo;&lt;br&gt;&lt;b&gt;organizacion.models&lt;/b&gt;&lt;br&gt;Delegacion, Area, Cargo" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_dom">
+          <mxGeometry x="270" y="45" width="190" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="dom_personas" value="&amp;laquo;modelos&amp;raquo;&lt;br&gt;&lt;b&gt;personas.models&lt;/b&gt;&lt;br&gt;Usuario, Funcionario" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_dom">
+          <mxGeometry x="520" y="45" width="180" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="dom_territorio" value="&amp;laquo;modelos&amp;raquo;&lt;br&gt;&lt;b&gt;territorio.models&lt;/b&gt;&lt;br&gt;Vecino, Territorio, JuntaVecinos" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_dom">
+          <mxGeometry x="760" y="45" width="190" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="dom_metas" value="&amp;laquo;modelos&amp;raquo;&lt;br&gt;&lt;b&gt;metas.models&lt;/b&gt;&lt;br&gt;Periodo, Item,&lt;br&gt;MetaDelegacion, Meta" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_dom">
+          <mxGeometry x="1010" y="45" width="200" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Capa 4: Servicio y Utilidades -->
+        <mxCell id="layer_srv" value="CAPA DE SERVICIO Y UTILIDADES TRANSVERSALES (core)" style="swimlane;startSize=25;fillColor=#FAFAFA;strokeColor=#CCCCCC;fontFamily=Arial;fontSize=11;fontStyle=1;fontColor=#333333;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="50" y="630" width="1250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="srv_val" value="&lt;b&gt;Validador RUT&lt;/b&gt;&lt;br&gt;core/validators.py" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_srv">
+          <mxGeometry x="120" y="40" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="srv_perm" value="&lt;b&gt;Permisos RBAC&lt;/b&gt;&lt;br&gt;core/permissions.py&lt;br&gt;(IsAdministrador)" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_srv">
+          <mxGeometry x="420" y="40" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="srv_audit" value="&lt;b&gt;Auditoría Automática&lt;/b&gt;&lt;br&gt;core/auditoria.py" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_srv">
+          <mxGeometry x="730" y="40" width="190" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="srv_plantilla" value="&lt;b&gt;MantenedorViewSet&lt;/b&gt;&lt;br&gt;core/views.py (Base CRUD)" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#AD0000;fontFamily=Arial;fontSize=10;" vertex="1" parent="layer_srv">
+          <mxGeometry x="1010" y="40" width="190" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Capa 5: Persistencia -->
+        <mxCell id="layer_pers" value="CAPA DE PERSISTENCIA (Django ORM &amp; Base de Datos)" style="swimlane;startSize=25;fillColor=#F5F5F5;strokeColor=#CCCCCC;fontFamily=Arial;fontSize=11;fontStyle=1;fontColor=#333333;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="50" y="760" width="1250" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="pers_orm" value="&lt;b&gt;Django ORM&lt;/b&gt;&lt;br&gt;(Object-Relational Mapping)&lt;br&gt;QuerySets, Migrations, DB Engine" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;fontFamily=Arial;fontSize=11;" vertex="1" parent="layer_pers">
+          <mxGeometry x="250" y="40" width="300" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pers_db" value="&lt;b&gt;Motor Relacional MariaDB / MySQL&lt;/b&gt;&lt;br&gt;(AWS RDS / Local :3306)&lt;br&gt;Tablas físicas según SQL v2.4" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#F8F9FA;strokeColor=#AD0000;fontFamily=Arial;fontSize=11;fontStyle=1;" vertex="1" parent="layer_pers">
+          <mxGeometry x="780" y="35" width="280" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- INTERFACES GLOBALES / EXTERNAS -->
+        <!-- Interfaz API REST Provista hacia Web y Movil -->
+        <mxCell id="int_api" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#FFFFFF;strokeColor=#AD0000;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="665" y="100" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_api" value="&lt;b&gt;API REST (/api/...)&lt;/b&gt;&lt;br&gt;JSON / HTTPS :443" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="615" y="75" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Conexiones Web y Movil a API REST -->
+        <mxCell id="edge_web_api" value="" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#333333;" edge="1" parent="1" source="ext_web" target="int_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_mobile_api" value="" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#333333;" edge="1" parent="1" source="ext_mobile" target="int_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_api_app" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#AD0000;dashed=1;" edge="1" parent="1" source="int_api" target="layer_app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Conexiones ORM a Base de Datos -->
+        <mxCell id="edge_orm_db" value="SQL :3306" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#AD0000;fontFamily=Arial;fontSize=10;fontStyle=1;" edge="1" parent="layer_pers" source="pers_orm" target="pers_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_dom_orm" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#333333;dashed=1;" edge="1" parent="1" source="layer_dom" target="layer_pers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- RELACIONES ENTRE APPS (INTERFACES BOLA-CUENCA) -->
+        <!-- Core provee MantenedorViewSet, IsAdmin, Auditoria a todas las apps -->
+        <mxCell id="lbl_rel_core" value="&lt;i&gt;core provee MantenedorViewSet, IsAdministrador y Auditoria a organizacion, personas, territorio y metas&lt;/i&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#666666;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="270" y="445" width="600" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- organizacion -> personas (Funcionario usa Cargo y Delegacion) -->
+        <mxCell id="edge_org_personas" value="id_cargo, id_delegacion" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#333333;fontSize=9;fontFamily=Arial;" edge="1" parent="layer_dom" source="dom_org" target="dom_personas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- organizacion -> metas (Item usa Cargo) -->
+        <mxCell id="edge_org_metas" value="id_cargo" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;strokeColor=#333333;fontSize=9;fontFamily=Arial;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="layer_dom" source="dom_org" target="dom_metas">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="365" y="135" />
+              <mxPoint x="1060" y="135" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- personas -> metas (Meta usa Funcionario) -->
+        <mxCell id="edge_personas_metas" value="id_funcionario" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#333333;fontSize=9;fontFamily=Arial;" edge="1" parent="layer_dom" source="dom_personas" target="dom_metas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
