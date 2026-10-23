@@ -23,6 +23,8 @@ python manage.py runserver
 - API: http://127.0.0.1:8000/api/
 - Admin de Django: http://127.0.0.1:8000/admin/
 - Login de la API: `POST /api/auth/login/` con `{"email": "...", "password": "..."}`
+- Correo real para «¿Olvidaste tu contraseña?» (opcional): sigue [docs/LEEME-correo.md](docs/LEEME-correo.md).
+  Sin eso, el código sale en la consola del servidor.
 
 ## Reparto de apps
 
