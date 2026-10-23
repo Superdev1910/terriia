@@ -64,6 +64,9 @@ class FuncionarioMantenedorTests(APITestCase):
         r = self.client.post(URL, self.datos)
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["campo"], "identificador_inst")
+        self.assertEqual(
+            r.data["error"], "Ya existe un funcionario con este identificador institucional."
+        )
 
     def test_identificador_vacio(self):
         self.datos["identificador_inst"] = "   "
@@ -140,4 +143,22 @@ class FuncionarioMantenedorTests(APITestCase):
         r = self.client.get(URL, {"delegacion": self.norte.pk})
         self.assertEqual(r.data["count"], 2)
         r = self.client.get(URL, {"delegacion": self.norte.pk, "estado": "activo"})
+        self.assertEqual(r.data["count"], 1)
+
+    # SCRUM-38: lo que usa la pantalla de funcionarios
+    def test_nombres_y_orden_para_la_pantalla(self):
+        self._crear("F-0001", self.norte)
+        otro = self._crear("F-0002", self.centro, nombre="Luis Rojas")
+        otro.cargo = Cargo.objects.create(nombre="Asistente social")
+        otro.save()
+        r = self.client.get(URL, {"ordering": "cargo__nombre,id_funcionario"})
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        primero = r.data["results"][0]
+        self.assertEqual(primero["identificador_inst"], "F-0002")
+        self.assertEqual(primero["cargo_nombre"], "Asistente social")
+        self.assertEqual(primero["delegacion_codigo"], "CEN")
+        self.assertEqual(primero["delegacion_nombre"], "Centro")
+        r = self.client.get(URL, {"ordering": "-delegacion__codigo"})
+        self.assertEqual(r.data["results"][0]["delegacion_codigo"], "NOR")
+        r = self.client.get(URL, {"search": "Centro"})
         self.assertEqual(r.data["count"], 1)

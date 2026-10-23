@@ -26,6 +26,13 @@ MENU_SECCIONES = [
     ),
     ("Territorio", MENU),
     (
+        "Personas",
+        [
+            ("personas_usuarios", "Usuarios", "bi-person-gear"),
+            ("personas_funcionarios", "Funcionarios", "bi-person-vcard"),
+        ],
+    ),
+    (
         "Metas",
         [
             ("metas_periodos", "Períodos", "bi-calendar-range"),
