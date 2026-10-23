@@ -24,6 +24,8 @@ MENU = [
     ("territorio_vecinos", "Vecinos", "bi-people"),
     ("territorio_territorios", "Territorios", "bi-map"),
     ("territorio_juntas", "Juntas de vecinos", "bi-houses"),
+    ("personas_usuarios", "Usuarios", "bi-person-gear"),
+    ("personas_funcionarios", "Funcionarios", "bi-person-vcard"),
 ]
 
 
