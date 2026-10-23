@@ -224,5 +224,12 @@ class PantallaRolesTests(TestCase):
     def test_roles_sale_en_el_menu_de_todas_las_pantallas(self):
         self.client.force_login(crear_admin())
         enlace = f'href="{reverse("core_roles")}"'
-        for pantalla in ["org_inicio", "org_cargos", "territorio_vecinos", "core_roles"]:
+        pantallas = [
+            "org_inicio",
+            "org_cargos",
+            "territorio_vecinos",
+            "metas_periodos",
+            "core_roles",
+        ]
+        for pantalla in pantallas:
             self.assertIn(enlace, self.client.get(reverse(pantalla)).content.decode(), pantalla)
