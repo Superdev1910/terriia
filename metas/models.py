@@ -1,7 +1,9 @@
 # Valentina: periodo, item (SCRUM-22 HU09, SCRUM-32 HU29).
 # Fernando: meta_delegacion, meta (SCRUM-25 HU12). Ver README.
 from django.db import models
+from django.conf import settings
 from organizacion.models import Cargo
+from django.utils import timezone
 
 
 class Periodo(models.Model):
@@ -54,3 +56,92 @@ class Item(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.cargo.nombre})"
+
+
+class MetaDelegacion(models.Model):
+    id_meta_delegacion = models.AutoField(primary_key=True)
+    item = models.ForeignKey(
+        Item, on_delete=models.PROTECT, db_column="id_item", related_name="metas_delegacion"
+    )
+    delegacion = models.ForeignKey(
+        "organizacion.Delegacion",
+        on_delete=models.PROTECT,
+        db_column="id_delegacion",
+        related_name="metas_delegacion",
+    )
+    periodo = models.ForeignKey(
+        Periodo, on_delete=models.PROTECT, db_column="id_periodo", related_name="metas_delegacion"
+    )
+    valor_objetivo_total = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = "meta_delegacion"
+        ordering = ["-periodo", "delegacion", "item"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item", "delegacion", "periodo"], name="uq_meta_delegacion"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.item.nombre} · {self.delegacion.nombre} · período {self.periodo_id}"
+
+
+class MetaIndividual(models.Model):
+    id_meta = models.AutoField(primary_key=True)
+    meta_delegacion = models.ForeignKey(
+        MetaDelegacion,
+        on_delete=models.PROTECT,
+        db_column="id_meta_delegacion",
+        related_name="metas_individuales",
+    )
+    funcionario = models.ForeignKey(
+        "personas.Funcionario",
+        on_delete=models.PROTECT,
+        db_column="id_funcionario",
+        related_name="metas",
+    )
+    valor_objetivo = models.DecimalField(max_digits=10, decimal_places=2)
+    unidad = models.CharField(max_length=20, blank=True, null=True)
+
+    class Meta:
+        db_table = "meta"
+        ordering = ["meta_delegacion", "funcionario"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["meta_delegacion", "funcionario"], name="uq_meta_funcionario"
+            )
+        ]
+
+    def __str__(self):
+        return f"Meta {self.id_meta} · funcionario {self.funcionario_id}"
+
+
+class RecalibracionMeta(models.Model):
+
+    id_recalibracion = models.AutoField(primary_key=True)
+    meta = models.ForeignKey(
+        MetaIndividual,
+        on_delete=models.PROTECT,
+        db_column="id_meta",
+        related_name="recalibraciones",
+    )
+    valor_objetivo_anterior = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    valor_objetivo_nuevo = models.DecimalField(max_digits=10, decimal_places=2)
+    motivo = models.CharField(max_length=255)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column="usuario_id",
+        related_name="recalibraciones_meta",
+    )
+    fecha = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "recalibracion_meta"
+        ordering = ["-fecha", "-id_recalibracion"]
+
+    def __str__(self):
+        return f"Recalibración {self.id_recalibracion} de la meta {self.meta_id}"
