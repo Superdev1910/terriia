@@ -70,8 +70,6 @@ cerrar formularios y panel (UX-05) e inicio con cifras reales. SweetAlert2 y los
 ## Pendiente / por confirmar
 - Escudo oficial: confirmar que `static/organizacion/img/escudo.png` es el archivo oficial (sin deformarlo ni recolorearlo).
 - Login común y plantilla base compartida son de `core` (Patricio): cuando exista, mover `base.html` y `terriia.css` a `core`.
-- Cabecera: muestra "Acceso global" hasta que `usuario.delegacion` exista (HU19).
-- Prueba `test_delegacion_cargo_funcionario_usuario` (INT-ORG-09) está en *skip* hasta que existan funcionario y usuario.delegacion (Patricio y Fernando). Al activarla hay que escribir su cuerpo: hoy solo tiene `pass`.
 
 ## Sitio público y pantallas de acceso (visual)
 
@@ -99,9 +97,6 @@ y `js/sesion.js`; fotos en `img/playa.jpg` y `img/municipalidad.jpg`.
   (solo Las Compañías está completa; las otras 5 dicen "Por completar"; las coordenadas son aproximadas).
 - Pruebas: `tests/test_publico.py` (y `core/tests/test_clave.py` para la recuperación).
 
-### Lo que falta en `core` (Patricio)
-- `usuario.delegacion` (HU19), para que la cabecera muestre el código y nombre de la delegación activa.
-
 ## Estado de los módulos (para el README de la entrega)
 
 | Módulo | Estado | Nota |
@@ -112,6 +107,6 @@ y `js/sesion.js`; fotos en `img/playa.jpg` y `img/municipalidad.jpg`.
 | Login y cierre de sesión | Operativo | Usa `/api/auth/login/` y `/api/auth/logout/` de `core` |
 | Recuperar y cambiar contraseña | Operativo | Endpoints de `core`; correo por consola en local |
 | Sitio público (inicio, delegaciones, servicios, contacto) | Operativo (solo lectura) | Datos en `datos_directorio.py`; las coordenadas de 5 delegaciones son aproximadas |
-| Cabecera con delegación activa | Pendiente | Muestra «Acceso global» hasta que exista `usuario.delegacion` (HU19) |
-| Prueba INT-ORG-09 (delegación → cargo → funcionario → usuario) | Pendiente | Bloqueada: faltan `Funcionario` y `usuario.delegacion` |
+| Cabecera con delegación activa | Operativo | Muestra código y nombre de `usuario.delegacion`; «Acceso global» si es NULL (HU19) |
+| Prueba INT-ORG-09 (delegación → cargo → funcionario → usuario) | Operativo | Flujo completo por API |
 | Pruebas de estrés y de navegador | Pendiente | No ejecutadas; no se declaran aprobadas |

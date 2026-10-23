@@ -36,7 +36,7 @@ class UsuarioManager(BaseUserManager):
 
 class Usuario(AbstractUser):
     """
-    Tabla `usuario` del modelo físico v2.3. Login por email.
+    Tabla `usuario` del modelo físico v2.4. Login por email.
     HU18 (gestión de usuarios y roles) / HU19 (aislamiento por delegación).
     """
 
@@ -51,11 +51,24 @@ class Usuario(AbstractUser):
     password = models.CharField(max_length=255, db_column="password_hash")
     estado = models.CharField(max_length=8, choices=ESTADOS, default=ACTIVO)
 
-    # Pendientes: se agregan con una migración nueva cuando existan sus modelos.
-    # funcionario = models.ForeignKey("personas.Funcionario", null=True, blank=True,
-    #                                 on_delete=models.PROTECT, db_column="id_funcionario")
-    # delegacion = models.ForeignKey("organizacion.Delegacion", null=True, blank=True,
-    #                                on_delete=models.PROTECT, db_column="id_delegacion")  # NULL = acceso global
+    # NULL para usuarios sin ficha de funcionario (ej. alcaldesa).
+    funcionario = models.ForeignKey(
+        "personas.Funcionario",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        db_column="id_funcionario",
+        related_name="usuarios",
+    )
+    # HU19: NULL = acceso global (alcaldesa / administrador).
+    delegacion = models.ForeignKey(
+        "organizacion.Delegacion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        db_column="id_delegacion",
+        related_name="usuarios",
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["rut"]
