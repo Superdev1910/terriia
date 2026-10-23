@@ -3,7 +3,12 @@ from django.db import models
 
 
 class Rol(models.Model):
-    """Tabla de solo lectura. Se carga con la migración semilla (core/migrations/0002)."""
+    """
+    Tabla `rol`. Los 6 roles del sistema (TODOS) se cargan con la migración semilla
+    (core/migrations/0003) y los permisos los usan por nombre: se puede editar su descripción,
+    pero no renombrarlos ni desactivarlos (lo valida RolSerializer).
+    Los roles nuevos se crean, editan y desactivan en el mantenedor /api/roles/.
+    """
 
     ADMINISTRADOR = "Administrador"
     JEFE_DELEGACIONES = "Jefe de delegaciones"
@@ -22,11 +27,17 @@ class Rol(models.Model):
 
     id_rol = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=50, unique=True)
+    descripcion = models.CharField(max_length=255, blank=True, default="")
+    activo = models.BooleanField(default=True)
 
     class Meta:
         db_table = "rol"
         ordering = ["id_rol"]
         verbose_name_plural = "roles"
+
+    @property
+    def es_del_sistema(self):
+        return self.nombre in self.TODOS
 
     def __str__(self):
         return self.nombre

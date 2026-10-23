@@ -41,6 +41,7 @@ MENU_SECCIONES = [
             ("metas_individuales", "Metas individuales", "bi-person-check"),
         ],
     ),
+    ("Administración", [("core_roles", "Roles", "bi-shield-lock")]),
     (
         "Atenciones",
         [

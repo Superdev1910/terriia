@@ -30,6 +30,7 @@ MENU = [
     ("metas_items", "Ítems", "bi-list-check"),
     ("metas_delegacion", "Metas por delegación", "bi-bullseye"),
     ("metas_individuales", "Metas individuales", "bi-person-check"),
+    ("core_roles", "Roles", "bi-shield-lock"),
     ("atenciones_tipos", "Tipos de atención", "bi-tags"),
     ("atenciones_sub_atenciones", "Sub atenciones", "bi-tag"),
 ]

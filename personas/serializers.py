@@ -65,6 +65,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ya existe un usuario con este email.")
         return valor
 
+    def validate_rol(self, rol):
+        # Un rol desactivado no se asigna; quien ya lo tiene lo conserva y sigue entrando.
+        cambio = not self.instance or self.instance.rol_id != rol.pk
+        if cambio and not rol.activo:
+            raise serializers.ValidationError("El rol que seleccionó no está activo.")
+        return rol
+
     def validate_funcionario(self, funcionario):
         if funcionario is None:
             return funcionario
