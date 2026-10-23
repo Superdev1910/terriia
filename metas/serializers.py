@@ -1,6 +1,10 @@
 from decimal import Decimal
+from django.db.models.aggregates import Sum
+from django.db import transaction
+from organizacion.models import Delegacion
+from personas.models import Funcionario
 from rest_framework import serializers
-from .models import Item, Periodo
+from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta
 
 
 class PeriodoSerializer(serializers.ModelSerializer):
@@ -97,3 +101,186 @@ class ItemSerializer(serializers.ModelSerializer):
                 )
 
         return datos
+
+
+def _asignado(meta_delegacion):
+    suma = meta_delegacion.metas_individuales.aggregate(total=Sum("valor_objetivo"))["total"]
+    return suma or Decimal("0")
+
+
+class MetaDelegacionSerializer(serializers.ModelSerializer):
+    suma_metas = serializers.SerializerMethodField()
+    saldo_por_asignar = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MetaDelegacion
+        fields = [
+            "id_meta_delegacion",
+            "item",
+            "delegacion",
+            "periodo",
+            "valor_objetivo_total",
+            "suma_metas",
+            "saldo_por_asignar",
+        ]
+        validators = []  # la unicidad se valida en validate() con mensaje en español
+
+    def _suma(self, obj):
+        suma = getattr(obj, "suma_anotada", None)
+        return _asignado(obj) if suma is None else suma
+
+    def get_suma_metas(self, obj):
+        return f"{self._suma(obj):.2f}"
+
+    def get_saldo_por_asignar(self, obj):
+        return f"{obj.valor_objetivo_total - self._suma(obj):.2f}"
+
+    def validate_valor_objetivo_total(self, valor):
+        if valor <= 0:
+            raise serializers.ValidationError("El valor objetivo total debe ser mayor a cero.")
+        return valor
+
+    def validate_item(self, item):
+        if self.instance is None and not item.activo:
+            raise serializers.ValidationError("El ítem seleccionado no está activo.")
+        return item
+
+    def validate_delegacion(self, delegacion):
+        if self.instance is None and delegacion.estado != Delegacion.ACTIVA:
+            raise serializers.ValidationError("La delegación seleccionada está inactiva.")
+        return delegacion
+
+    def validate(self, datos):
+        if self.instance:
+            for campo in ("item", "delegacion", "periodo"):
+                if campo in datos and datos[campo] != getattr(self.instance, campo):
+                    raise serializers.ValidationError(
+                        {campo: "No se puede cambiar una vez creada la meta de la delegación."}
+                    )
+            nuevo = datos.get("valor_objetivo_total")
+            if (
+                nuevo is not None
+                and nuevo != self.instance.valor_objetivo_total
+                and self.instance.metas_individuales.exists()
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "valor_objetivo_total": "Ya tiene metas individuales: "
+                        "para ajustar el valor recalibra una meta individual."
+                    }
+                )
+            return datos
+        if MetaDelegacion.objects.filter(
+            item=datos["item"], delegacion=datos["delegacion"], periodo=datos["periodo"]
+        ).exists():
+            raise serializers.ValidationError(
+                {"item": "Ya existe una meta de esta delegación para este ítem y período."}
+            )
+        return datos
+
+
+class MetaIndividualSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MetaIndividual
+        fields = ["id_meta", "meta_delegacion", "funcionario", "valor_objetivo", "unidad"]
+        validators = []  # la unicidad se valida en validate() con mensaje en español
+
+    def validate_valor_objetivo(self, valor):
+        if valor <= 0:
+            raise serializers.ValidationError("El valor objetivo debe ser mayor a cero.")
+        return valor
+
+    def validate(self, datos):
+        if self.instance:
+            # El valor solo cambia por recalibración; así el historial nunca se salta.
+            for campo in ("meta_delegacion", "funcionario"):
+                if campo in datos and datos[campo] != getattr(self.instance, campo):
+                    raise serializers.ValidationError(
+                        {campo: "No se puede cambiar una vez asignada la meta."}
+                    )
+            if (
+                "valor_objetivo" in datos
+                and datos["valor_objetivo"] != self.instance.valor_objetivo
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "valor_objetivo": "El valor solo se cambia recalibrando la meta "
+                        "(queda registrado el motivo)."
+                    }
+                )
+            return datos
+
+        meta_delegacion = datos["meta_delegacion"]
+        funcionario = datos["funcionario"]
+        valor = datos["valor_objetivo"]
+        if funcionario.estado != Funcionario.ACTIVO:
+            raise serializers.ValidationError({"funcionario": "El funcionario está inactivo."})
+        if funcionario.delegacion_id != meta_delegacion.delegacion_id:
+            raise serializers.ValidationError(
+                {"funcionario": "El funcionario no pertenece a la delegación de esta meta."}
+            )
+        if meta_delegacion.metas_individuales.filter(funcionario=funcionario).exists():
+            raise serializers.ValidationError(
+                {"funcionario": "El funcionario ya tiene una meta asignada para este ítem."}
+            )
+        saldo = meta_delegacion.valor_objetivo_total - _asignado(meta_delegacion)
+        if valor > saldo:
+            raise serializers.ValidationError(
+                {
+                    "valor_objetivo": "La suma de las metas individuales no puede superar el "
+                    f"valor objetivo total de la delegación (saldo disponible: {saldo:.2f})."
+                }
+            )
+        return datos
+
+
+class RecalibracionMetaSerializer(serializers.ModelSerializer):
+    usuario_email = serializers.CharField(source="usuario.email", read_only=True)
+
+    class Meta:
+        model = RecalibracionMeta
+        fields = [
+            "id_recalibracion",
+            "meta",
+            "valor_objetivo_anterior",
+            "valor_objetivo_nuevo",
+            "motivo",
+            "usuario",
+            "usuario_email",
+            "fecha",
+        ]
+        read_only_fields = ["meta", "valor_objetivo_anterior", "usuario", "fecha"]
+
+    def validate_valor_objetivo_nuevo(self, valor):
+        if valor <= 0:
+            raise serializers.ValidationError("El nuevo valor objetivo debe ser mayor a cero.")
+        meta = self.context.get("meta")
+        if meta is not None and valor == meta.valor_objetivo:
+            raise serializers.ValidationError("El nuevo valor es igual al valor actual de la meta.")
+        return valor
+
+    def validate_motivo(self, valor):
+        valor = valor.strip()
+        if not valor:
+            raise serializers.ValidationError("El motivo del ajuste es obligatorio.")
+        return valor
+
+    def create(self, datos):
+        """Registra el ajuste y actualiza la meta y el total de su delegación (misma diferencia)."""
+        with transaction.atomic():
+            md_id = self.context["meta"].meta_delegacion_id
+            meta_delegacion = MetaDelegacion.objects.select_for_update().get(pk=md_id)
+            meta = MetaIndividual.objects.select_for_update().get(pk=self.context["meta"].pk)
+            anterior, nuevo = meta.valor_objetivo, datos["valor_objetivo_nuevo"]
+            recalibracion = RecalibracionMeta.objects.create(
+                meta=meta,
+                valor_objetivo_anterior=anterior,
+                valor_objetivo_nuevo=nuevo,
+                motivo=datos["motivo"],
+                usuario=self.context["request"].user,
+            )
+            meta.valor_objetivo = nuevo
+            meta.save(update_fields=["valor_objetivo"])
+            meta_delegacion.valor_objetivo_total += nuevo - anterior
+            meta_delegacion.save(update_fields=["valor_objetivo_total"])
+        return recalibracion
