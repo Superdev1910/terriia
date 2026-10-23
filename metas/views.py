@@ -55,7 +55,7 @@ class MetaDelegacionViewSet(MantenedorViewSet):
     )
     serializer_class = MetaDelegacionSerializer
     search_fields = ["item__nombre", "delegacion__nombre"]
-    filterset_fields = ["item", "delegacion", "periodo"]
+    filterset_fields = ["item", "item__cargo", "delegacion", "periodo"]
     http_method_names = SIN_BORRAR
 
 

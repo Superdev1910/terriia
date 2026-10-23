@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from core.models import Rol
-from metas.models import Item, MetaDelegacion, Periodo
+from metas.models import Item, MetaDelegacion, MetaIndividual, Periodo
 from organizacion.models import Cargo, Delegacion
 from personas.models import Funcionario, Usuario
 
@@ -43,4 +43,9 @@ class DatosMetasMixin:
             delegacion=delegacion or self.centro,
             periodo=self.periodo,
             valor_objetivo_total=Decimal(total),
+        )
+
+    def crear_meta(self, meta_delegacion, funcionario, valor="40.00"):
+        return MetaIndividual.objects.create(
+            meta_delegacion=meta_delegacion, funcionario=funcionario, valor_objetivo=Decimal(valor)
         )

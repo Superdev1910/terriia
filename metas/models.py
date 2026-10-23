@@ -2,7 +2,7 @@
 # Fernando: meta_delegacion, meta (SCRUM-25 HU12). Ver README.
 from django.db import models
 from django.conf import settings
-from organizacion.models import Delegacion, Cargo
+from organizacion.models import Cargo
 from django.utils import timezone
 
 

@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from core.models import Auditoria
-from metas.models import RecalibracionMeta
+from metas.models import Item, RecalibracionMeta
 from personas.models import Usuario
 
 from .datos_base import DatosMetasMixin
@@ -77,6 +77,26 @@ class RecalibracionMetaTests(DatosMetasMixin, APITestCase):
         r = self.client.post(self.url, self.datos)
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["campo"], "valor_objetivo_nuevo")
+
+    def test_porcentaje_no_supera_100_al_recalibrar(self):
+        md = self.crear_meta_delegacion("90.00", item=self.crear_item("Cobertura", Item.PORCENTAJE))
+        meta = self.crear_meta(md, self.ana, "40.00")
+        self.crear_meta(md, self.luis, "50.00")
+        url = f"{URL_META}{meta.pk}/recalibrar/"
+
+        r = self.client.post(url, {"valor_objetivo_nuevo": "55.00", "motivo": "Más cobertura"})
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["campo"], "valor_objetivo_nuevo")
+        self.assertIn("no puede superar 100%", r.data["error"])
+        md.refresh_from_db()
+        self.assertEqual(md.valor_objetivo_total, Decimal("90.00"))
+        self.assertFalse(RecalibracionMeta.objects.exists())
+
+        # justo 100 sí se permite
+        r = self.client.post(url, {"valor_objetivo_nuevo": "50.00", "motivo": "Más cobertura"})
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        md.refresh_from_db()
+        self.assertEqual(md.valor_objetivo_total, Decimal("100.00"))
 
     # 4. el historial no se edita ni se borra
     def test_historial_solo_lectura(self):

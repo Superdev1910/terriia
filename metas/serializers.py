@@ -6,6 +6,8 @@ from personas.models import Funcionario
 from rest_framework import serializers
 from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta
 
+TOPE_PORCENTAJE = "En un ítem de tipo porcentaje la meta no puede superar 100%."
+
 
 class PeriodoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -187,11 +189,7 @@ class MetaDelegacionSerializer(serializers.ModelSerializer):
         if valor is None and self.instance:
             valor = self.instance.valor_objetivo_total
         if item and valor is not None and item.tipo_meta == Item.PORCENTAJE and valor > 100:
-            raise serializers.ValidationError(
-                {
-                    "valor_objetivo_total": "En un ítem de tipo porcentaje la meta no puede superar 100%."
-                }
-            )
+            raise serializers.ValidationError({"valor_objetivo_total": TOPE_PORCENTAJE})
         if self.instance:
             for campo in ("item", "delegacion", "periodo"):
                 if campo in datos and datos[campo] != getattr(self.instance, campo):
@@ -306,6 +304,17 @@ class RecalibracionMetaSerializer(serializers.ModelSerializer):
         if not valor:
             raise serializers.ValidationError("El motivo del ajuste es obligatorio.")
         return valor
+
+    def validate(self, datos):
+        """En un ítem de tipo porcentaje, el total de la delegación tras el ajuste no pasa de 100."""
+        meta = self.context.get("meta")
+        nuevo = datos.get("valor_objetivo_nuevo")
+        if meta is not None and nuevo is not None:
+            meta_delegacion = meta.meta_delegacion
+            total = meta_delegacion.valor_objetivo_total + nuevo - meta.valor_objetivo
+            if meta_delegacion.item.tipo_meta == Item.PORCENTAJE and total > 100:
+                raise serializers.ValidationError({"valor_objetivo_nuevo": TOPE_PORCENTAJE})
+        return datos
 
     def create(self, datos):
         """Registra el ajuste y actualiza la meta y el total de su delegación (misma diferencia)."""
