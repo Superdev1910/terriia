@@ -26,6 +26,15 @@ MENU_SECCIONES = [
     ),
     ("Territorio", MENU),
     (
+        "Metas",
+        [
+            ("metas_periodos", "Períodos", "bi-calendar-range"),
+            ("metas_items", "Ítems", "bi-list-check"),
+            ("metas_delegacion", "Metas por delegación", "bi-bullseye"),
+            ("metas_individuales", "Metas individuales", "bi-person-check"),
+        ],
+    ),
+    (
         "Atenciones",
         [
             ("atenciones_tipos", "Tipos de atención", "bi-tags"),

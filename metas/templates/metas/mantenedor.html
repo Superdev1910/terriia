@@ -1,0 +1,89 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<div class="encabezado-pagina">
+  <div>
+    <h1 id="tituloPagina"></h1>
+    <p class="subtitulo" id="subtituloPagina"></p>
+  </div>
+  <div class="acciones-pagina">
+    <button class="btn btn-borde" id="btnExcel"><i class="bi bi-file-earmark-excel"></i> Exportar a Excel</button>
+    <button class="btn btn-primario" id="btnNuevo"><i class="bi bi-plus-lg"></i> <span id="txtNuevo">Nuevo</span></button>
+  </div>
+</div>
+
+<section class="panel" aria-label="Listado">
+  <form class="filtros" id="filtros" role="search" onsubmit="return false">
+    <label class="campo-buscar">
+      <span class="sr">Buscar</span>
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input type="search" id="buscar" placeholder="Buscar…" autocomplete="off">
+    </label>
+    <div id="filtrosExtra" class="filtros-extra"></div>
+    <button type="button" class="btn btn-texto" id="btnLimpiar"><i class="bi bi-x-circle"></i> Limpiar</button>
+  </form>
+
+  <!-- Avisos de la pantalla (ej.: ponderadores de un cargo que no suman 100%) -->
+  <div id="avisos" class="avisos" role="status" aria-live="polite" hidden></div>
+
+  <div class="tabla-scroll">
+    <table class="tabla" id="tabla">
+      <caption class="sr" id="capTabla"></caption>
+      <thead><tr id="cabeceraTabla"></tr></thead>
+      <tbody id="cuerpoTabla"></tbody>
+    </table>
+  </div>
+
+  <div id="estado" class="estado" role="status" aria-live="polite"></div>
+
+  <div class="pie-tabla">
+    <span id="total" class="total"></span>
+    <nav class="paginador" id="paginador" aria-label="Paginación"></nav>
+  </div>
+</section>
+
+<!-- Formulario crear / editar / consultar -->
+<div class="modal-fondo" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+    <div class="modal-cab">
+      <h2 id="modalTitulo"></h2>
+      <button class="btn-cerrar" id="modalCerrar" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form id="formulario" novalidate>
+      <div class="modal-cuerpo" id="camposForm"></div>
+      <p class="nota-oblig"><span class="oblig">*</span> Campo obligatorio</p>
+      <div class="modal-pie">
+        <button type="button" class="btn btn-borde" id="btnCancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primario" id="btnGuardar"><i class="bi bi-check-lg"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Complementos de terriia.css que solo usan las pantallas de metas */
+  .avisos { display: grid; gap: .5rem; padding: .9rem 1.1rem 0; }
+  .filtros-extra, .filtros-extra select { max-width: 100%; } /* opciones largas no salen del panel en el celular */
+  /* Estas tablas tienen más columnas: títulos y acciones en dos líneas para que quepan sin desplazarse */
+  .tabla th { white-space: normal; }
+  .tabla th, .tabla td { padding: .7rem .65rem; }
+  .tabla td small { color: var(--gris-700); }
+  .tabla td.acciones { white-space: normal; min-width: 9.5rem; }
+  .tabla td.acciones .btn-accion { margin: .15rem 0 .15rem .25rem; }
+  .sin-corte { white-space: nowrap; }
+  .texto-alerta { display: inline-flex; gap: .35rem; align-items: baseline; color: #8a4b00; font-size: .85rem; font-weight: 700; min-width: 12rem; }
+  a.btn-accion { text-decoration: none; }
+  .swal-campos { display: grid; gap: .75rem; text-align: left; }
+  .swal-campos p { margin: 0; }
+  .swal-campos label { display: grid; gap: .3rem; font-weight: 700; font-size: .92rem; }
+  .swal-campos input, .swal-campos textarea { font: inherit; padding: .5rem .6rem; border: 1px solid var(--gris-300); border-radius: 6px; }
+  .tabla-historial { width: 100%; border-collapse: collapse; font-size: .88rem; text-align: left; }
+  .tabla-historial th, .tabla-historial td { padding: .45rem .5rem; border-bottom: 1px solid var(--gris-300); vertical-align: top; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{{ entidad|json_script:"entidad" }}
+<script src="{% static 'metas/js/mantenedor.js' %}"></script>
+{% endblock %}

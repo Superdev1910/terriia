@@ -11,6 +11,7 @@ urlpatterns = [
     path("organizacion/", include("organizacion.urls_pantallas")),  # pantallas HTML (Brian)
     path("territorio/", include("territorio.urls_pantallas")),
     path("api/", include("metas.urls")),
+    path("metas/", include("metas.urls_pantallas")),
     path("api/", include("atenciones.urls")),
     path("atenciones/", include("atenciones.urls_pantallas")),
     path("api-auth/", include("rest_framework.urls")),  # login de la API navegable
