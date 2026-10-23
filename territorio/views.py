@@ -27,7 +27,14 @@ class TerritorioViewSet(MantenedorViewSet):
 class JuntaVecinosViewSet(MantenedorViewSet):
     queryset = JuntaVecinos.objects.select_related("territorio", "territorio__delegacion").all()
     serializer_class = JuntaVecinosSerializer
-    search_fields = ["numero_registro", "nombre", "direccion", "presidente", "email", "territorio__nombre"]
+    search_fields = [
+        "numero_registro",
+        "nombre",
+        "direccion",
+        "presidente",
+        "email",
+        "territorio__nombre",
+    ]
     filterset_fields = ["activa", "territorio", "territorio__delegacion"]
     ordering_fields = "__all__"
     campo_estado = "activa"

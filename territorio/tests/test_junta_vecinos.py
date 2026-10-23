@@ -32,11 +32,13 @@ class JuntaVecinosTests(APITestCase):
         response = self.client.post(self.url, self.datos())
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         pk = response.data["id_junta_vecinos"]
-        self.assertTrue(Auditoria.objects.filter(entidad="junta_vecinos", evento="crear", entidad_id=pk).exists())
+        self.assertTrue(
+            Auditoria.objects.filter(
+                entidad="junta_vecinos", evento="crear", entidad_id=pk
+            ).exists()
+        )
         self.assertEqual(
-            self.client.patch(
-                f"{self.url}{pk}/", {"nombre": "Junta actualizada"}
-            ).status_code,
+            self.client.patch(f"{self.url}{pk}/", {"nombre": "Junta actualizada"}).status_code,
             status.HTTP_200_OK,
         )
         self.assertTrue(
@@ -44,20 +46,35 @@ class JuntaVecinosTests(APITestCase):
                 entidad="junta_vecinos", evento="editar", entidad_id=pk
             ).exists()
         )
-        self.assertEqual(self.client.delete(f"{self.url}{pk}/").status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(
+            self.client.delete(f"{self.url}{pk}/").status_code, status.HTTP_204_NO_CONTENT
+        )
         self.assertFalse(JuntaVecinos.objects.get(pk=pk).activa)
 
     def test_rechaza_obligatorios_duplicados_y_territorio_inactivo(self):
-        self.assertEqual(self.client.post(self.url, {"territorio": self.territorio.pk}).status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(self.client.post(self.url, self.datos()).status_code, status.HTTP_201_CREATED)
-        self.assertEqual(self.client.post(self.url, self.datos(nombre="Otra junta")).status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            self.client.post(self.url, {"territorio": self.territorio.pk}).status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(
+            self.client.post(self.url, self.datos()).status_code, status.HTTP_201_CREATED
+        )
+        self.assertEqual(
+            self.client.post(self.url, self.datos(nombre="Otra junta")).status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
         self.territorio.activo = False
         self.territorio.save(update_fields=["activo"])
-        self.assertEqual(self.client.post(self.url, self.datos(numero_registro="JV-002")).status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            self.client.post(self.url, self.datos(numero_registro="JV-002")).status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
 
     def test_rechaza_territorio_inexistente_y_negativo(self):
         for territorio in (99999, -6):
-            response = self.client.post(self.url, self.datos(territorio=territorio, numero_registro=f"JV-{territorio}"))
+            response = self.client.post(
+                self.url, self.datos(territorio=territorio, numero_registro=f"JV-{territorio}")
+            )
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
             self.assertEqual(response.data["campo"], "territorio")
 
@@ -70,7 +87,12 @@ class JuntaVecinosTests(APITestCase):
             ).data["count"],
             1,
         )
-        self.assertEqual(self.client.post(self.url, {"territorio": 99999, "numero_registro": "JV-002", "nombre": "Inválida"}).status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            self.client.post(
+                self.url, {"territorio": 99999, "numero_registro": "JV-002", "nombre": "Inválida"}
+            ).status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
         self.client.force_authenticate(crear_funcionario())
         self.assertEqual(self.client.get(self.url).status_code, status.HTTP_403_FORBIDDEN)
 

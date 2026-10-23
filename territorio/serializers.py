@@ -84,9 +84,7 @@ class TerritorioSerializer(serializers.ModelSerializer):
 
 class JuntaVecinosSerializer(serializers.ModelSerializer):
     territorio_nombre = serializers.CharField(source="territorio.nombre", read_only=True)
-    delegacion_nombre = serializers.CharField(
-        source="territorio.delegacion.nombre", read_only=True
-    )
+    delegacion_nombre = serializers.CharField(source="territorio.delegacion.nombre", read_only=True)
     activa = serializers.BooleanField(default=True, required=False)
 
     class Meta:
