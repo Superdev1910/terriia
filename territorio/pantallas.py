@@ -32,6 +32,15 @@ MENU_SECCIONES = [
             ("personas_funcionarios", "Funcionarios", "bi-person-vcard"),
         ],
     ),
+    (
+        "Metas",
+        [
+            ("metas_periodos", "Períodos", "bi-calendar-range"),
+            ("metas_items", "Ítems", "bi-list-check"),
+            ("metas_delegacion", "Metas por delegación", "bi-bullseye"),
+            ("metas_individuales", "Metas individuales", "bi-person-check"),
+        ],
+    ),
 ]
 
 
