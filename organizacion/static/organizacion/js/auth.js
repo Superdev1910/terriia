@@ -108,7 +108,12 @@
         });
         const datos = await r.json().catch(() => ({}));
         if (r.ok) {
-          window.location.href = login.dataset.siguiente || (datos.rol === 'Administrador' ? '/organizacion/' : '/');
+            const inicioPorRol = {
+              Administrador: '/organizacion/',
+              'Delegado territorial': '/territorio/territorios/',
+              Funcionario: '/personas/mi-perfil/',
+            };
+            window.location.href = login.dataset.siguiente || inicioPorRol[datos.rol] || '/';
           return;
         }
         alerta(datos.error || 'No se pudo iniciar sesión. Intenta de nuevo.');

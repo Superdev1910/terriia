@@ -1,4 +1,5 @@
 from core.views import MantenedorViewSet
+from core.permissions import IsAdministradorODelegado
 
 from .models import JuntaVecinos, Territorio, Vecino
 from .serializers import JuntaVecinosSerializer, TerritorioSerializer, VecinoSerializer
@@ -15,6 +16,8 @@ class VecinoViewSet(MantenedorViewSet):
 
 
 class TerritorioViewSet(MantenedorViewSet):
+    permission_classes = [IsAdministradorODelegado]
+    delegacion_lookup = "delegacion_id"
     queryset = Territorio.objects.select_related("delegacion").all()
     serializer_class = TerritorioSerializer
     search_fields = ["nombre", "delegacion__nombre", "delegacion__codigo"]
@@ -25,6 +28,8 @@ class TerritorioViewSet(MantenedorViewSet):
 
 
 class JuntaVecinosViewSet(MantenedorViewSet):
+    permission_classes = [IsAdministradorODelegado]
+    delegacion_lookup = "territorio__delegacion_id"
     queryset = JuntaVecinos.objects.select_related("territorio", "territorio__delegacion").all()
     serializer_class = JuntaVecinosSerializer
     search_fields = [

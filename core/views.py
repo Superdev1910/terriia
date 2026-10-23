@@ -3,6 +3,7 @@ from django.db import models, transaction
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 from rest_framework import status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -10,31 +11,70 @@ from rest_framework.views import APIView
 
 from . import auditoria
 from .models import Rol
-from .permissions import IsAdministrador
+from .permissions import IsAdministrador, rol_de_usuario
 from .serializers import RolSerializer
 
 
 class MantenedorViewSet(viewsets.ModelViewSet):
     """
-    Plantilla de TODOS los mantenedores. Trae:
-      - permiso IsAdministrador
+    Plantilla base de los mantenedores. Trae:
+      - permiso IsAdministrador por defecto (las subclases de alcance definen excepciones)
       - listado con búsqueda (search_fields), filtro (filterset_fields) y paginación
       - registro automático en auditoria (crear / editar / desactivar)
       - "borrar" = desactivar (nunca DELETE físico)
 
-    En la subclase solo se definen: queryset, serializer_class, search_fields,
-    filterset_fields y campo_estado.
+    En la subclase se pueden definir queryset, serializer_class, search_fields,
+    filterset_fields, campo_estado y los alcances delegacion_lookup/funcionario_lookup.
     """
 
     permission_classes = [IsAdministrador]
+    delegacion_lookup = None
+    delegacion_related_lookups = ()
+    funcionario_lookup = None
+    delegado_lectura_global = False
     campo_estado = "estado"  # nombre del campo que se desactiva
     valor_inactivo = None  # se deduce solo: False si es booleano, 'inactivo'/'inactiva' si es ENUM
     ordering_fields = "__all__"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        rol = rol_de_usuario(user)
+        if rol == Rol.ADMINISTRADOR:
+            return queryset
+        if rol == Rol.DELEGADO_TERRITORIAL:
+            if self.delegacion_lookup and user.delegacion_id:
+                return queryset.filter(**{self.delegacion_lookup: user.delegacion_id})
+            if self.delegado_lectura_global:
+                return queryset
+            return queryset.none()
+        if rol == Rol.FUNCIONARIO and self.funcionario_lookup and user.funcionario_id:
+            return queryset.filter(**{self.funcionario_lookup: user.funcionario_id})
+        return queryset.none()
+
+    def _validar_alcance_delegado(self, instancia):
+        user = self.request.user
+        if (
+            rol_de_usuario(user) == Rol.DELEGADO_TERRITORIAL
+            and self.delegacion_lookup
+        ):
+            pertenece = self.get_queryset().filter(pk=instancia.pk).exists()
+            relacionados = all(
+                type(instancia)._base_manager.filter(
+                    pk=instancia.pk, **{lookup: user.delegacion_id}
+                ).exists()
+                for lookup in self.delegacion_related_lookups
+            )
+            if not pertenece or not relacionados:
+                raise PermissionDenied(
+                    "El registro y sus relaciones deben pertenecer a tu delegación."
+                )
 
     # --- auditoría -------------------------------------------------------
     def perform_create(self, serializer):
         with transaction.atomic():
             instancia = serializer.save()
+            self._validar_alcance_delegado(instancia)
             auditoria.registrar(
                 self.request.user, "crear", instancia, nuevo=auditoria.foto(instancia)
             )
@@ -43,6 +83,7 @@ class MantenedorViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             anterior = auditoria.foto(serializer.instance)
             instancia = serializer.save()
+            self._validar_alcance_delegado(instancia)
             auditoria.registrar(
                 self.request.user,
                 "editar",

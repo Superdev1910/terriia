@@ -50,7 +50,7 @@ Cada mantenedor ocupa los mismos archivos de su app: `models.py`, `serializers.p
 | Modelo | `db_table = "<tabla>"` y los nombres del SQL v2.3. PK explícita: `id_delegacion = models.AutoField(primary_key=True)` |
 | Llaves foráneas | `delegacion = models.ForeignKey(Delegacion, on_delete=models.PROTECT, db_column="id_delegacion")` |
 | Vista | Hereda de `core.views.MantenedorViewSet` (trae permisos, auditoría y desactivar) |
-| Permisos | Ya vienen en la plantilla (`IsAdministrador`); nunca permisos propios |
+| Permisos | Por defecto `IsAdministrador`. Los mantenedores operativos pueden declarar alcance por delegación en el backend; nunca basta ocultar opciones en el menú. |
 | Borrado | Nunca DELETE físico. Indica `campo_estado` (`estado`, `activo`, `vigente`, `activa`) |
 | Auditoría | Automática; no se escribe a mano |
 | Validaciones | En el serializer (`validate_<campo>` / `validate`). RUT con `core.validators` |
@@ -77,6 +77,13 @@ class DelegacionViewSet(MantenedorViewSet):
 Luego agrega tu app en `config/urls.py` (la línea ya está comentada, solo descoméntala).
 
 ## Flujo de trabajo en Git
+
+### Acceso por rol
+
+- **Administrador:** acceso completo a los mantenedores y catálogos.
+- **Delegado territorial:** puede gestionar territorios, juntas de vecinos, funcionarios y metas de su delegación. Los catálogos globales son de solo lectura para cargar formularios; el API filtra los registros por `usuario.delegacion` y valida también las relaciones enviadas al guardar.
+- **Funcionario:** puede consultar su ficha y las metas asignadas desde `/personas/mi-perfil/`. Esta pantalla es de solo lectura; el proyecto aún no tiene un flujo para registrar avances de tareas.
+- La creación de cuentas y la asignación de roles siguen siendo exclusivas del Administrador.
 
 - `main`: lo que está en el servidor AWS. Solo Patricio une `develop` → `main`.
 - `develop`: integración. **Nadie hace push directo**: todo entra por Pull Request.

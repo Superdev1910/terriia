@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core import auditoria
-from core.permissions import IsAdministrador
+from core.permissions import IsAdministrador, IsAdministradorODelegadoLectura
 from core.views import MantenedorViewSet
 
 from .models import Area, Cargo, Delegacion
@@ -72,6 +72,8 @@ class MantenedorOrganizacionViewSet(MantenedorViewSet):
 
 
 class DelegacionViewSet(MantenedorOrganizacionViewSet):
+    permission_classes = [IsAdministradorODelegadoLectura]
+    delegacion_lookup = "pk"
     # Los contadores se calculan en la misma consulta del listado (sin una consulta por fila).
     queryset = Delegacion.objects.annotate(
         n_areas=Count("areas", distinct=True),
@@ -121,6 +123,8 @@ class DelegacionViewSet(MantenedorOrganizacionViewSet):
 
 
 class AreaViewSet(MantenedorOrganizacionViewSet):
+    permission_classes = [IsAdministradorODelegadoLectura]
+    delegacion_lookup = "delegacion_id"
     queryset = (
         Area.objects.select_related("delegacion")
         .annotate(n_cargos_vigentes=Count("cargos", filter=Q(cargos__vigente=True)))
@@ -151,6 +155,8 @@ class AreaViewSet(MantenedorOrganizacionViewSet):
 
 
 class CargoViewSet(MantenedorOrganizacionViewSet):
+    permission_classes = [IsAdministradorODelegadoLectura]
+    delegacion_lookup = "area__delegacion_id"
     queryset = Cargo.objects.select_related("area", "area__delegacion").all()
     serializer_class = CargoSerializer
     search_fields = ["nombre", "descripcion", "area__delegacion__nombre"]
