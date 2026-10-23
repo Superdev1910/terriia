@@ -14,6 +14,18 @@ MENU = [
     ("territorio_territorios", "Territorios", "bi-map"),
     ("territorio_juntas", "Juntas de vecinos", "bi-houses"),
 ]
+MENU_SECCIONES = [
+    ("Inicio", [("org_inicio", "Inicio", "bi-house-door")]),
+    (
+        "Organización",
+        [
+            ("org_delegaciones", "Delegaciones", "bi-buildings"),
+            ("org_areas", "Áreas", "bi-diagram-3"),
+            ("org_cargos", "Cargos", "bi-person-badge"),
+        ],
+    ),
+    ("Territorio", MENU),
+]
 
 
 def solo_administrador(vista):
@@ -33,6 +45,7 @@ def contexto(request, activa):
     delegacion = getattr(usuario, "delegacion", None)
     return {
         "menu": MENU,
+        "menu_secciones": MENU_SECCIONES,
         "activa": activa,
         "nombre_usuario": usuario.get_full_name() or usuario.email,
         "rol_usuario": usuario.rol.nombre if getattr(usuario, "rol_id", None) else "Superusuario",

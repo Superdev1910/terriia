@@ -38,12 +38,23 @@
 
   <div class="estructura">
     <nav class="menu" id="menu" aria-label="Principal">
-      <p class="menu-titulo">Organización</p>
-      {% for nombre, texto, icono in menu %}
-        <a href="{% url nombre %}" class="{% if nombre == activa %}activo{% endif %}" {% if nombre == activa %}aria-current="page"{% endif %}>
-          <i class="bi {{ icono }}" aria-hidden="true"></i> {{ texto }}
-        </a>
-      {% endfor %}
+      {% if menu_secciones %}
+        {% for seccion in menu_secciones %}
+          <p class="menu-titulo">{{ seccion.0 }}</p>
+          {% for nombre, texto, icono in seccion.1 %}
+            <a href="{% url nombre %}" class="{% if nombre == activa %}activo{% endif %}" {% if nombre == activa %}aria-current="page"{% endif %}>
+              <i class="bi {{ icono }}" aria-hidden="true"></i> {{ texto }}
+            </a>
+          {% endfor %}
+        {% endfor %}
+      {% else %}
+        <p class="menu-titulo">Organización</p>
+        {% for nombre, texto, icono in menu %}
+          <a href="{% url nombre %}" class="{% if nombre == activa %}activo{% endif %}" {% if nombre == activa %}aria-current="page"{% endif %}>
+            <i class="bi {{ icono }}" aria-hidden="true"></i> {{ texto }}
+          </a>
+        {% endfor %}
+      {% endif %}
       <a href="{% url 'pub_inicio' %}" class="menu-enlace"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Ver sitio público</a>
       <p class="menu-pie">Proyecto Integrado · material académico<br>Datos de ejemplo</p>
     </nav>
