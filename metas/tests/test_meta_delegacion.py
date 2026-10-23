@@ -5,6 +5,7 @@ from rest_framework.test import APITestCase
 
 from core.models import Auditoria
 from metas.models import MetaDelegacion
+from organizacion.models import Cargo
 from personas.models import Usuario
 
 from .datos_base import DatosMetasMixin
@@ -26,8 +27,7 @@ class MetaDelegacionTests(DatosMetasMixin, APITestCase):
     def test_crear(self):
         r = self.client.post(URL, self.datos)
         self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
-        self.assertEqual(r.data["suma_metas"], "0.00")
-        self.assertEqual(r.data["saldo_por_asignar"], "100.00")
+        self.assertIsNone(r.data["advertencia"])  # el único ítem pesa 100%
         md = MetaDelegacion.objects.get()
         self.assertTrue(
             Auditoria.objects.filter(
@@ -35,7 +35,7 @@ class MetaDelegacionTests(DatosMetasMixin, APITestCase):
             ).exists()
         )
 
-    # 2. editar (sin metas individuales el total sí se puede cambiar)
+    # 2. editar
     def test_editar_total(self):
         md = self.crear_meta_delegacion()
         r = self.client.patch(f"{URL}{md.pk}/", {"valor_objetivo_total": "120.00"})
@@ -64,13 +64,6 @@ class MetaDelegacionTests(DatosMetasMixin, APITestCase):
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["campo"], "item")
 
-    def test_total_bloqueado_con_metas_individuales(self):
-        md = self.crear_meta_delegacion()
-        self.crear_meta(md, self.ana)
-        r = self.client.patch(f"{URL}{md.pk}/", {"valor_objetivo_total": "50.00"})
-        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["campo"], "valor_objetivo_total")
-
     # 4. no se borra (la tabla no tiene columna de estado)
     def test_no_se_puede_borrar(self):
         md = self.crear_meta_delegacion()
@@ -88,12 +81,63 @@ class MetaDelegacionTests(DatosMetasMixin, APITestCase):
         self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn("error", r.data)
 
-    # listado: suma asignada, saldo y filtro por delegación
-    def test_listado_con_saldo_y_filtro(self):
-        md = self.crear_meta_delegacion("100.00", self.centro)
+    # listado: filtro por delegación
+    def test_listado_y_filtro_por_delegacion(self):
+        self.crear_meta_delegacion("100.00", self.centro)
         self.crear_meta_delegacion("50.00", self.norte)
-        self.crear_meta(md, self.ana, "30.00")
         r = self.client.get(URL, {"delegacion": self.centro.pk})
         self.assertEqual(r.data["count"], 1)
-        self.assertEqual(r.data["results"][0]["suma_metas"], "30.00")
-        self.assertEqual(r.data["results"][0]["saldo_por_asignar"], "70.00")
+
+    # HU09: la respuesta trae los datos del ítem (tipo de meta, ponderador, cargo)
+    def test_respuesta_incluye_datos_del_item(self):
+        r = self.client.post(URL, self.datos)
+        self.assertEqual(r.data["item_nombre"], "Visitas")
+        self.assertEqual(r.data["tipo_meta"], "conteo")
+        self.assertEqual(r.data["ponderador"], "100.00")
+        self.assertEqual(r.data["cargo_nombre"], "Inspector")
+
+    # HU09: se soportan metas por cantidad y por porcentaje
+    def test_meta_por_porcentaje(self):
+        soluciones = self.crear_item("Soluciones al ingreso al tubo", "porcentaje", "30")
+        self.datos.update(item=soluciones.pk, valor_objetivo_total="80")
+        r = self.client.post(URL, self.datos)
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        self.assertEqual(r.data["tipo_meta"], "porcentaje")
+
+    def test_porcentaje_no_puede_superar_100(self):
+        soluciones = self.crear_item("Soluciones al ingreso al tubo", "porcentaje", "30")
+        self.datos.update(item=soluciones.pk, valor_objetivo_total="120")
+        r = self.client.post(URL, self.datos)
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["campo"], "valor_objetivo_total")
+
+    # HU09: advierte si los ponderadores de las metas del cargo no suman 100%
+    def test_advertencia_hasta_completar_100(self):
+        atencion = self.crear_item("Atención de usuario", ponderador="40")
+        talleres = self.crear_item("Gestión de talleres", ponderador="60")
+        self.datos.update(item=atencion.pk, valor_objetivo_total="45")
+        r = self.client.post(URL, self.datos)
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        self.assertIn("40.00%", r.data["advertencia"])
+        self.assertIn("Inspector", r.data["advertencia"])
+
+        self.datos.update(item=talleres.pk, valor_objetivo_total="24")
+        r = self.client.post(URL, self.datos)
+        self.assertIsNone(r.data["advertencia"])
+        listado = self.client.get(URL)
+        self.assertTrue(all(m["advertencia"] is None for m in listado.data["results"]))
+
+    def test_advertencia_es_por_delegacion(self):
+        atencion = self.crear_item("Atención de usuario", ponderador="40")
+        self.crear_meta_delegacion("45", self.centro, item=atencion)
+        self.datos.update(item=atencion.pk, delegacion=self.norte.pk, valor_objetivo_total="30")
+        r = self.client.post(URL, self.datos)
+        self.assertIn("40.00%", r.data["advertencia"])
+
+    def test_filtro_por_cargo(self):
+        self.crear_meta_delegacion("100.00")
+        r = self.client.get(URL, {"item__cargo": self.cargo.pk})
+        self.assertEqual(r.data["count"], 1)
+        otro_cargo = Cargo.objects.create(nombre="Asistente social")
+        r = self.client.get(URL, {"item__cargo": otro_cargo.pk})
+        self.assertEqual(r.data["count"], 0)

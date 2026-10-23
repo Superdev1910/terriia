@@ -104,11 +104,20 @@ class ItemSerializer(serializers.ModelSerializer):
 
 
 def _asignado(meta_delegacion):
+    """Suma de las metas individuales ya asignadas dentro de una meta_delegacion."""
     suma = meta_delegacion.metas_individuales.aggregate(total=Sum("valor_objetivo"))["total"]
     return suma or Decimal("0")
 
 
 class MetaDelegacionSerializer(serializers.ModelSerializer):
+    item_nombre = serializers.CharField(source="item.nombre", read_only=True)
+    tipo_meta = serializers.CharField(source="item.tipo_meta", read_only=True)
+    ponderador = serializers.DecimalField(
+        source="item.ponderador", max_digits=5, decimal_places=2, read_only=True
+    )
+    cargo = serializers.IntegerField(source="item.cargo_id", read_only=True)
+    cargo_nombre = serializers.CharField(source="item.cargo.nombre", read_only=True)
+    advertencia = serializers.SerializerMethodField()
     suma_metas = serializers.SerializerMethodField()
     saldo_por_asignar = serializers.SerializerMethodField()
 
@@ -117,9 +126,15 @@ class MetaDelegacionSerializer(serializers.ModelSerializer):
         fields = [
             "id_meta_delegacion",
             "item",
+            "item_nombre",
+            "tipo_meta",
+            "ponderador",
+            "cargo",
+            "cargo_nombre",
             "delegacion",
             "periodo",
             "valor_objetivo_total",
+            "advertencia",
             "suma_metas",
             "saldo_por_asignar",
         ]
@@ -128,6 +143,22 @@ class MetaDelegacionSerializer(serializers.ModelSerializer):
     def _suma(self, obj):
         suma = getattr(obj, "suma_anotada", None)
         return _asignado(obj) if suma is None else suma
+
+    def get_advertencia(self, obj):
+        """HU09: avisa si los ponderadores de las metas del cargo no suman 100%."""
+        clave = (obj.delegacion_id, obj.periodo_id, obj.item.cargo_id)
+        cache = self.context.setdefault("_suma_ponderadores", {})
+        if clave not in cache:
+            suma = MetaDelegacion.objects.filter(
+                delegacion_id=clave[0], periodo_id=clave[1], item__cargo_id=clave[2]
+            ).aggregate(total=Sum("item__ponderador"))["total"]
+            cache[clave] = suma or Decimal("0")
+        if cache[clave] == 100:
+            return None
+        return (
+            f"Los ponderadores de las metas del cargo {obj.item.cargo.nombre} en esta "
+            f"delegación y período suman {cache[clave]:.2f}%, no 100%."
+        )
 
     def get_suma_metas(self, obj):
         return f"{self._suma(obj):.2f}"
@@ -151,6 +182,16 @@ class MetaDelegacionSerializer(serializers.ModelSerializer):
         return delegacion
 
     def validate(self, datos):
+        item = datos.get("item") or (self.instance.item if self.instance else None)
+        valor = datos.get("valor_objetivo_total")
+        if valor is None and self.instance:
+            valor = self.instance.valor_objetivo_total
+        if item and valor is not None and item.tipo_meta == Item.PORCENTAJE and valor > 100:
+            raise serializers.ValidationError(
+                {
+                    "valor_objetivo_total": "En un ítem de tipo porcentaje la meta no puede superar 100%."
+                }
+            )
         if self.instance:
             for campo in ("item", "delegacion", "periodo"):
                 if campo in datos and datos[campo] != getattr(self.instance, campo):
@@ -161,6 +202,7 @@ class MetaDelegacionSerializer(serializers.ModelSerializer):
             if (
                 nuevo is not None
                 and nuevo != self.instance.valor_objetivo_total
+                and self.instance.item.tipo_meta == Item.CONTEO
                 and self.instance.metas_individuales.exists()
             ):
                 raise serializers.ValidationError(
