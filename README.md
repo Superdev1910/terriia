@@ -35,6 +35,7 @@ python manage.py runserver
 | `organizacion` | Brian | delegacion, area, cargo |
 | `territorio` | Pamela | vecino, territorio, junta_vecinos |
 | `metas` | Valentina / Fernando | periodo, item / meta_delegacion, meta |
+| `atenciones` | Patricio | tipo_atencion, sub_atencion |
 
 **Trabaja solo en tu app.** Si necesitas cambiar `core` o `config`, avisa a Patricio.
 

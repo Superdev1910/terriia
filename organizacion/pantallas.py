@@ -24,11 +24,15 @@ MENU = [
     ("territorio_vecinos", "Vecinos", "bi-people"),
     ("territorio_territorios", "Territorios", "bi-map"),
     ("territorio_juntas", "Juntas de vecinos", "bi-houses"),
+    ("personas_usuarios", "Usuarios", "bi-person-gear"),
+    ("personas_funcionarios", "Funcionarios", "bi-person-vcard"),
     ("metas_periodos", "Períodos", "bi-calendar-range"),
     ("metas_items", "Ítems", "bi-list-check"),
     ("metas_delegacion", "Metas por delegación", "bi-bullseye"),
     ("metas_individuales", "Metas individuales", "bi-person-check"),
     ("core_roles", "Roles", "bi-shield-lock"),
+    ("atenciones_tipos", "Tipos de atención", "bi-tags"),
+    ("atenciones_sub_atenciones", "Sub atenciones", "bi-tag"),
 ]
 
 

@@ -1,4 +1,5 @@
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from core.validators import normalizar_rut, rut_es_valido
@@ -8,10 +9,20 @@ from organizacion.models import Delegacion
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
+    # La clave no se recorta: el login la compara tal cual se escribió.
     password = serializers.CharField(
-        write_only=True, required=False, style={"input_type": "password"}
+        write_only=True, required=False, trim_whitespace=False, style={"input_type": "password"}
     )
     rol_nombre = serializers.CharField(source="rol.nombre", read_only=True)
+    funcionario_nombre = serializers.CharField(
+        source="funcionario.nombre", read_only=True, allow_null=True
+    )
+    delegacion_codigo = serializers.CharField(
+        source="delegacion.codigo", read_only=True, allow_null=True
+    )
+    delegacion_nombre = serializers.CharField(
+        source="delegacion.nombre", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = Usuario
@@ -24,10 +35,15 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "rol",
             "rol_nombre",
             "funcionario",
+            "funcionario_nombre",
             "delegacion",
+            "delegacion_codigo",
+            "delegacion_nombre",
             "estado",
             "password",
         ]
+        # RUT y email se validan a mano (ya normalizados) con mensajes en español.
+        extra_kwargs = {"rut": {"validators": []}, "email": {"validators": []}}
 
     def validate_rut(self, valor):
         if not rut_es_valido(valor):
@@ -73,10 +89,21 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return delegacion
 
     def validate(self, datos):
-        if self.instance is None and not datos.get("password"):
+        clave = datos.get("password")
+        if self.instance is None and not clave:
             raise serializers.ValidationError({"password": "La contraseña es obligatoria."})
-        if datos.get("password"):
-            validate_password(datos["password"])
+        if clave:
+            # Reglas de clave de settings; con los datos nuevos del usuario para rechazar
+            # claves parecidas a su email o a su nombre.
+            usuario = Usuario(
+                email=datos.get("email", getattr(self.instance, "email", "")),
+                first_name=datos.get("first_name", getattr(self.instance, "first_name", "")),
+                last_name=datos.get("last_name", getattr(self.instance, "last_name", "")),
+            )
+            try:
+                validate_password(clave, usuario)
+            except DjangoValidationError as error:
+                raise serializers.ValidationError({"password": list(error.messages)})
         return datos
 
     def create(self, datos):
@@ -97,9 +124,25 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
 
 class FuncionarioSerializer(serializers.ModelSerializer):
+    cargo_nombre = serializers.CharField(source="cargo.nombre", read_only=True)
+    delegacion_codigo = serializers.CharField(source="delegacion.codigo", read_only=True)
+    delegacion_nombre = serializers.CharField(source="delegacion.nombre", read_only=True)
+
     class Meta:
         model = Funcionario
-        fields = ["id_funcionario", "identificador_inst", "nombre", "cargo", "delegacion", "estado"]
+        fields = [
+            "id_funcionario",
+            "identificador_inst",
+            "nombre",
+            "cargo",
+            "cargo_nombre",
+            "delegacion",
+            "delegacion_codigo",
+            "delegacion_nombre",
+            "estado",
+        ]
+        # La unicidad se valida a mano (sin distinguir mayúsculas) con mensajes en español.
+        extra_kwargs = {"identificador_inst": {"validators": []}}
 
     def validate_identificador_inst(self, valor):
         valor = valor.strip()

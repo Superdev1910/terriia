@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "personas",  # usuario (Patricio), funcionario (Fernando)
     "territorio",  # vecino, territorio, junta_vecinos (Pamela)
     "metas",  # periodo, item (Valentina), meta_delegacion, meta (Fernando)
+    "atenciones",  # tipo_atencion, sub_atencion (SCRUM-61)
 ]
 
 MIDDLEWARE = [

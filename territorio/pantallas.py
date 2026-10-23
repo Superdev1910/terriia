@@ -26,6 +26,13 @@ MENU_SECCIONES = [
     ),
     ("Territorio", MENU),
     (
+        "Personas",
+        [
+            ("personas_usuarios", "Usuarios", "bi-person-gear"),
+            ("personas_funcionarios", "Funcionarios", "bi-person-vcard"),
+        ],
+    ),
+    (
         "Metas",
         [
             ("metas_periodos", "Períodos", "bi-calendar-range"),
@@ -35,6 +42,13 @@ MENU_SECCIONES = [
         ],
     ),
     ("Administración", [("core_roles", "Roles", "bi-shield-lock")]),
+    (
+        "Atenciones",
+        [
+            ("atenciones_tipos", "Tipos de atención", "bi-tags"),
+            ("atenciones_sub_atenciones", "Sub atenciones", "bi-tag"),
+        ],
+    ),
 ]
 
 
