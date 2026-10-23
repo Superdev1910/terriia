@@ -1,7 +1,7 @@
 from decimal import ROUND_HALF_UP, Decimal
 
-UMBRAL_CUMPLIDA = Decimal("80")  
-TOPE_CUMPLIMIENTO = Decimal("150")  
+UMBRAL_CUMPLIDA = Decimal("80")
+TOPE_CUMPLIMIENTO = Decimal("150")
 _CENTESIMAS = Decimal("0.01")
 
 
