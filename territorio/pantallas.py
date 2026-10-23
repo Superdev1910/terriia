@@ -41,6 +41,13 @@ MENU_SECCIONES = [
             ("metas_individuales", "Metas individuales", "bi-person-check"),
         ],
     ),
+    (
+        "Atenciones",
+        [
+            ("atenciones_tipos", "Tipos de atención", "bi-tags"),
+            ("atenciones_sub_atenciones", "Sub atenciones", "bi-tag"),
+        ],
+    ),
 ]
 
 

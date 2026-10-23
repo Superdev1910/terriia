@@ -13,6 +13,8 @@ urlpatterns = [
     path("personas/", include("personas.urls_pantallas")),
     path("api/", include("metas.urls")),
     path("metas/", include("metas.urls_pantallas")),
+    path("api/", include("atenciones.urls")),
+    path("atenciones/", include("atenciones.urls_pantallas")),
     path("api-auth/", include("rest_framework.urls")),  # login de la API navegable
     path("", include("organizacion.urls_publico")),  # sitio público + acceso (Brian)
 ]
