@@ -1,0 +1,75 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}{% if entidad == "sub-atenciones" %}Sub atenciones{% else %}Tipos de atención{% endif %}{% endblock %}
+{% block contenido %}
+<div class="encabezado-pagina">
+  <div>
+    <h1 id="tituloPagina"></h1>
+    <p class="subtitulo" id="subtituloPagina"></p>
+  </div>
+  <div class="acciones-pagina">
+    <button class="btn btn-borde" id="btnExcel" type="button"><i class="bi bi-file-earmark-excel"></i> Exportar a Excel</button>
+    <button class="btn btn-primario" id="btnNuevo" type="button"><i class="bi bi-plus-lg"></i> <span id="txtNuevo">Nuevo</span></button>
+  </div>
+</div>
+
+<section class="panel" aria-label="Listado">
+  <form class="filtros" id="filtros" role="search" onsubmit="return false">
+    <label class="campo-buscar">
+      <span class="sr">Buscar</span>
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input type="search" id="buscar" placeholder="Buscar por nombre…" autocomplete="off">
+    </label>
+    <div class="filtros-extra">
+      <select id="filtroArea" aria-label="Filtrar por área"><option value="">Todas las áreas</option></select>
+      {% if entidad == "sub-atenciones" %}
+      <select id="filtroTipo" aria-label="Filtrar por tipo de atención"><option value="">Todos los tipos</option></select>
+      {% endif %}
+      <select id="filtroEstado" aria-label="Filtrar por estado">
+        <option value="">Todos los estados</option>
+        <option value="true">Activos</option>
+        <option value="false">Inactivos</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-texto" id="btnLimpiar"><i class="bi bi-x-circle"></i> Limpiar</button>
+  </form>
+
+  <div class="tabla-scroll">
+    <table class="tabla">
+      <caption class="sr" id="capTabla"></caption>
+      <thead><tr id="cabeceraTabla"></tr></thead>
+      <tbody id="cuerpoTabla"></tbody>
+    </table>
+  </div>
+
+  <div id="estado" class="estado" role="status" aria-live="polite"></div>
+
+  <div class="pie-tabla">
+    <span id="total" class="total"></span>
+    <nav class="paginador" id="paginador" aria-label="Paginación"></nav>
+  </div>
+</section>
+
+<div class="modal-fondo" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+    <div class="modal-cab">
+      <h2 id="modalTitulo"></h2>
+      <button class="btn-cerrar" id="modalCerrar" type="button" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form id="formulario" novalidate>
+      <div class="modal-cuerpo" id="camposForm"></div>
+      <p class="nota-oblig"><span class="oblig">*</span> Campo obligatorio</p>
+      <div class="modal-pie">
+        <button type="button" class="btn btn-borde" id="btnCancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primario" id="btnGuardar"><i class="bi bi-check-lg"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{{ entidad|json_script:"entidad" }}
+{{ areas|json_script:"areas" }}
+<script src="{% static 'atenciones/js/mantenedor.js' %}?v=20261023-1"></script>
+{% endblock %}
