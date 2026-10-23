@@ -9,7 +9,7 @@ class PeriodoSerializer(serializers.ModelSerializer):
 
     def validate_dias_computables(self, valor):
         """Validación individual del campo dias_computables"""
-        if valor <= 0:
+        if valor is not None and valor <= 0:
             raise serializers.ValidationError(
                 "Los días computables deben ser un valor positivo mayor a cero."
             )

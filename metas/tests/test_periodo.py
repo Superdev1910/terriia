@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
+from core.models import Auditoria, Rol
 from metas.models import Periodo
 
 Usuario = get_user_model()
@@ -35,7 +36,7 @@ class PeriodoAPITestCase(APITestCase):
             fecha_inicio="2026-01-01",
             fecha_termino="2026-03-31",
             dias_computables=90,
-            estado="programado",
+            estado="cerrado",
             version_parametros="v1.0",
         )
         data = {"version_parametros": "v1.1", "estado": "vigente"}
@@ -52,7 +53,7 @@ class PeriodoAPITestCase(APITestCase):
             "fecha_inicio": "2026-03-31",
             "fecha_termino": "2026-01-01",
             "dias_computables": 90,
-            "estado": "programado",
+            "estado": "cerrado",
             "version_parametros": "v1.0",
         }
         res_invalido = self.client.post("/api/periodos/", data_invalida)
@@ -86,10 +87,10 @@ class PeriodoAPITestCase(APITestCase):
             version_parametros="v1.0",
         )
         res = self.client.delete(f"/api/periodos/{periodo.pk}/")
-        self.assertIn(
-            res.status_code,
-            [status.HTTP_200_OK, status.HTTP_204_NO_CONTENT],
-        )
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        periodo.refresh_from_db()
+        self.assertEqual(periodo.estado, "cerrado")  # no se borra: queda cerrado
+        self.assertTrue(Auditoria.objects.filter(evento="desactivar", entidad="periodo").exists())
 
     def test_acceso_denegado_sin_rol(self):
         """5. Acceso denegado: Comprueba que usuarios sin autenticación o sin rol Administrador sean bloqueados"""
@@ -99,3 +100,15 @@ class PeriodoAPITestCase(APITestCase):
             res.status_code,
             [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN],
         )
+
+    def test_acceso_denegado_a_funcionario(self):
+        """5b. Un usuario con rol Funcionario (no Administrador) no puede usar el mantenedor"""
+        funcionario = Usuario.objects.create_user(
+            email="func@laserena.cl",
+            rut="12345678-5",
+            password="Password123!",
+            rol=Rol.objects.get(nombre=Rol.FUNCIONARIO),
+        )
+        self.client.force_authenticate(user=funcionario)
+        res = self.client.get("/api/periodos/")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
