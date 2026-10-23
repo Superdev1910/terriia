@@ -3,7 +3,8 @@ from rest_framework import serializers
 
 from core.validators import normalizar_rut, rut_es_valido
 
-from .models import Usuario
+from .models import Usuario, Funcionario
+from organizacion.models import Delegacion
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
@@ -22,6 +23,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "last_name",
             "rol",
             "rol_nombre",
+            "funcionario",
+            "delegacion",
             "estado",
             "password",
         ]
@@ -46,6 +49,22 @@ class UsuarioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ya existe un usuario con este email.")
         return valor
 
+    def validate_funcionario(self, funcionario):
+        if funcionario is None:
+            return funcionario
+        cambio = not self.instance or self.instance.funcionario_id != funcionario.pk
+        if cambio and funcionario.estado != Funcionario.ACTIVO:
+            raise serializers.ValidationError("El funcionario que seleccionó no está activo.")
+        return funcionario
+
+    def validate_delegacion(self, delegacion):
+        if delegacion is None:  # HU19: acceso global
+            return delegacion
+        cambio = not self.instance or self.instance.delegacion_id != delegacion.pk
+        if cambio and delegacion.estado != Delegacion.ACTIVA:
+            raise serializers.ValidationError("La delegación que seleccionó no está activa.")
+        return delegacion
+
     def validate(self, datos):
         if self.instance is None and not datos.get("password"):
             raise serializers.ValidationError({"password": "La contraseña es obligatoria."})
@@ -68,3 +87,42 @@ class UsuarioSerializer(serializers.ModelSerializer):
             instancia.set_password(password)
         instancia.save()
         return instancia
+
+
+class FuncionarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Funcionario
+        fields = ["id_funcionario", "identificador_inst", "nombre", "cargo", "delegacion", "estado"]
+
+    def validate_identificador_inst(self, valor):
+        valor = valor.strip()
+        if not valor:
+            raise serializers.ValidationError(
+                "El identificador institucional es un campo obligatorio."
+            )
+        existe = Funcionario.objects.filter(identificador_inst__iexact=valor)
+        if self.instance:
+            existe = existe.exclude(pk=self.instance.pk)
+        if existe.exists():
+            raise serializers.ValidationError(
+                "Ya existe un funcionario con este identificador institucional."
+            )
+        return valor
+
+    def validate_nombre(self, valor):
+        valor = valor.strip()
+        if not valor:
+            raise serializers.ValidationError("El nombre es un campo obligatorio.")
+        return valor
+
+    def validate_delegacion(self, delegacion):
+        cambio = not self.instance or self.instance.delegacion_id != delegacion.pk
+        if cambio and delegacion.estado != Delegacion.ACTIVA:
+            raise serializers.ValidationError("La delegación que seleccionó no está activa.")
+        return delegacion
+
+    def validate_cargo(self, cargo):
+        cambio = not self.instance or self.instance.cargo_id != cargo.pk
+        if cambio and not cargo.vigente:
+            raise serializers.ValidationError("El cargo que seleccionó no está vigente.")
+        return cargo

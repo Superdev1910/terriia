@@ -4,6 +4,8 @@ from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
 
+from organizacion.models import Delegacion
+
 from .utiles import crear_admin, crear_funcionario
 
 PANTALLAS = [
@@ -40,6 +42,15 @@ class PantallasOrganizacionTests(TestCase):
         self.assertIn("Administrador", html)  # rol
         self.assertIn("admin@terriia.cl", html)  # nombre de usuario (sin nombre cargado)
         self.assertIn("Acceso global", html)  # distintivo con texto (no solo color)
+
+    def test_cabecera_muestra_delegacion_del_usuario(self):
+        admin = crear_admin()
+        admin.delegacion = Delegacion.objects.create(codigo="CEN", nombre="Centro")
+        admin.save()
+        self.client.force_login(admin)
+        html = self.client.get(reverse("org_delegaciones")).content.decode()
+        self.assertIn("CEN · Centro", html)
+        self.assertNotIn("Acceso global", html)
 
     def test_mantenedor_trae_los_controles_exigidos(self):
         self.client.force_login(crear_admin())

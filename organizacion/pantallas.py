@@ -41,7 +41,7 @@ def solo_administrador(vista):
 
 def contexto_usuario(request, activa):
     u = request.user
-    delegacion = getattr(u, "delegacion", None)  # campo pendiente en usuario (HU19)
+    delegacion = u.delegacion  # HU19: NULL = acceso global
     return {
         "menu": MENU,
         "activa": activa,
