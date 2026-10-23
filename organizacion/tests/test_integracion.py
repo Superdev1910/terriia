@@ -4,18 +4,18 @@ Recorren los flujos entre mantenedores: delegacion -> area -> cargo, y su relaci
 auditoria, usuarios y permisos. Cada prueba es independiente (base de datos limpia).
 """
 
-import unittest
-
 from django.db.models import ProtectedError
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Auditoria
+from core.models import Auditoria, Rol
 from organizacion.models import Area, Cargo, Delegacion
+from personas.models import Usuario
 
-from .utiles import crear_admin, crear_funcionario
+from .utiles import crear_admin, crear_funcionario, rut_valido
 
 DELEGACIONES, AREAS, CARGOS = "/api/delegaciones/", "/api/areas/", "/api/cargos/"
+FUNCIONARIOS, USUARIOS = "/api/funcionarios/", "/api/usuarios/"
 
 
 class FlujoOrganizacionTests(APITestCase):
@@ -127,10 +127,46 @@ class FlujoOrganizacionTests(APITestCase):
         self.assertEqual(r.status_code, 200, r.data)
         self.assertEqual(r.data["estado"], "activa")
 
-    # INT-ORG-09: delegación -> ... -> funcionario -> usuario (HU19)
-    @unittest.skip("Pendiente: usuario.id_delegacion y funcionario aún no existen en el repo.")
+    # INT-ORG-09: delegación -> área -> cargo -> funcionario -> usuario (HU19), todo por API.
+    # En JSON como las pantallas: en un formulario, el booleano `vigente` ausente llega como False.
     def test_delegacion_cargo_funcionario_usuario(self):
-        pass
+        d = self.crear_delegacion()
+        area = Area.objects.filter(delegacion_id=d["id_delegacion"]).first()
+        r = self.client.post(CARGOS, {"nombre": "Inspector", "area": area.pk}, format="json")
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        cargo = r.data
+
+        r = self.client.post(
+            FUNCIONARIOS,
+            {
+                "identificador_inst": "F-0001",
+                "nombre": "Ana Pérez",
+                "cargo": cargo["id_cargo"],
+                "delegacion": d["id_delegacion"],
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+
+        r = self.client.post(
+            USUARIOS,
+            {
+                "rut": rut_valido(12345678),
+                "email": "ana@terriia.cl",
+                "rol": Rol.objects.get(nombre=Rol.FUNCIONARIO).pk,
+                "funcionario": r.data["id_funcionario"],
+                "delegacion": d["id_delegacion"],
+                "password": "OtraClave#2026",
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+
+        usuario = Usuario.objects.get(email="ana@terriia.cl")
+        self.assertEqual(usuario.funcionario.cargo_id, cargo["id_cargo"])
+        self.assertEqual(usuario.delegacion_id, d["id_delegacion"])
+        delegacion = Delegacion.objects.get(pk=d["id_delegacion"])
+        self.assertEqual(list(delegacion.usuarios.all()), [usuario])
 
 
 class SeguridadOrganizacionTests(APITestCase):

@@ -5,10 +5,10 @@ from .serializers import UsuarioSerializer, FuncionarioSerializer
 
 
 class UsuarioViewSet(MantenedorViewSet):
-    queryset = Usuario.objects.select_related("rol").all()
+    queryset = Usuario.objects.select_related("rol", "funcionario", "delegacion").all()
     serializer_class = UsuarioSerializer
     search_fields = ["email", "rut", "first_name", "last_name"]
-    filterset_fields = ["estado", "rol"]
+    filterset_fields = ["estado", "rol", "delegacion"]
     campo_estado = "estado"
 
 

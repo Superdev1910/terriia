@@ -23,6 +23,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "last_name",
             "rol",
             "rol_nombre",
+            "funcionario",
+            "delegacion",
             "estado",
             "password",
         ]
@@ -46,6 +48,22 @@ class UsuarioSerializer(serializers.ModelSerializer):
         if existe.exists():
             raise serializers.ValidationError("Ya existe un usuario con este email.")
         return valor
+
+    def validate_funcionario(self, funcionario):
+        if funcionario is None:
+            return funcionario
+        cambio = not self.instance or self.instance.funcionario_id != funcionario.pk
+        if cambio and funcionario.estado != Funcionario.ACTIVO:
+            raise serializers.ValidationError("El funcionario que seleccionó no está activo.")
+        return funcionario
+
+    def validate_delegacion(self, delegacion):
+        if delegacion is None:  # HU19: acceso global
+            return delegacion
+        cambio = not self.instance or self.instance.delegacion_id != delegacion.pk
+        if cambio and delegacion.estado != Delegacion.ACTIVA:
+            raise serializers.ValidationError("La delegación que seleccionó no está activa.")
+        return delegacion
 
     def validate(self, datos):
         if self.instance is None and not datos.get("password"):
