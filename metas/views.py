@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from core import auditoria
 from core.views import MantenedorViewSet
+from core.permissions import IsAdministradorODelegado, IsAdministradorODelegadoLectura
 from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta
 from .serializers import (
     ItemSerializer,
@@ -20,6 +21,8 @@ SIN_BORRAR = ["get", "post", "put", "patch", "head", "options"]
 
 
 class PeriodoViewSet(MantenedorViewSet):
+    permission_classes = [IsAdministradorODelegadoLectura]
+    delegado_lectura_global = True
     queryset = Periodo.objects.all()
     serializer_class = PeriodoSerializer
     search_fields = ["version_parametros"]
@@ -29,6 +32,8 @@ class PeriodoViewSet(MantenedorViewSet):
 
 
 class ItemViewSet(MantenedorViewSet):
+    permission_classes = [IsAdministradorODelegadoLectura]
+    delegacion_lookup = "cargo__area__delegacion_id"
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
     search_fields = ["nombre", "tipo_meta"]
@@ -42,6 +47,9 @@ class ItemViewSet(MantenedorViewSet):
 
 
 class MetaDelegacionViewSet(MantenedorViewSet):
+    permission_classes = [IsAdministradorODelegado]
+    delegacion_lookup = "delegacion_id"
+    delegacion_related_lookups = ("item__cargo__area__delegacion_id",)
     queryset = (
         MetaDelegacion.objects.select_related("item", "delegacion", "periodo")
         .annotate(
@@ -60,6 +68,8 @@ class MetaDelegacionViewSet(MantenedorViewSet):
 
 
 class MetaIndividualViewSet(MantenedorViewSet):
+    permission_classes = [IsAdministradorODelegado]
+    delegacion_lookup = "meta_delegacion__delegacion_id"
     queryset = MetaIndividual.objects.select_related("meta_delegacion", "funcionario")
     serializer_class = MetaIndividualSerializer
     search_fields = ["funcionario__nombre", "funcionario__identificador_inst"]
@@ -99,3 +109,5 @@ class RecalibracionMetaViewSet(MantenedorViewSet):
     search_fields = ["motivo"]
     filterset_fields = ["meta", "usuario"]
     http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAdministradorODelegado]
+    delegacion_lookup = "meta__meta_delegacion__delegacion_id"

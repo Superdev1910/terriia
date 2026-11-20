@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from core.models import Rol
-from core.permissions import tiene_rol
+from core.permissions import rol_de_usuario, solo_roles, tiene_rol
 
 LOGIN_URL = "/ingresar/"
 MENU = [
@@ -28,6 +28,7 @@ MENU_SECCIONES = [
     (
         "Personas",
         [
+            ("personas_mi_perfil", "Mis datos y metas", "bi-person-circle"),
             ("personas_usuarios", "Usuarios", "bi-person-gear"),
             ("personas_funcionarios", "Funcionarios", "bi-person-vcard"),
         ],
@@ -51,6 +52,33 @@ MENU_SECCIONES = [
     ),
 ]
 
+PAGINAS_POR_ROL = {
+    Rol.DELEGADO_TERRITORIAL: {
+        "territorio_territorios",
+        "territorio_juntas",
+        "personas_funcionarios",
+        "metas_delegacion",
+        "metas_individuales",
+    },
+    Rol.FUNCIONARIO: {"personas_mi_perfil"},
+}
+
+
+def menu_para_usuario(usuario):
+    rol = rol_de_usuario(usuario)
+    if rol == Rol.ADMINISTRADOR:
+        return [
+            (titulo, [item for item in paginas if item[0] != "personas_mi_perfil"])
+            for titulo, paginas in MENU_SECCIONES
+            if any(item[0] != "personas_mi_perfil" for item in paginas)
+        ]
+    permitidas = PAGINAS_POR_ROL.get(rol, set())
+    return [
+        (titulo, [item for item in paginas if item[0] in permitidas])
+        for titulo, paginas in MENU_SECCIONES
+        if any(item[0] in permitidas for item in paginas)
+    ]
+
 
 def solo_administrador(vista):
     @wraps(vista)
@@ -69,7 +97,7 @@ def contexto(request, activa):
     delegacion = getattr(usuario, "delegacion", None)
     return {
         "menu": MENU,
-        "menu_secciones": MENU_SECCIONES,
+        "menu_secciones": menu_para_usuario(usuario),
         "activa": activa,
         "nombre_usuario": usuario.get_full_name() or usuario.email,
         "rol_usuario": usuario.rol.nombre if getattr(usuario, "rol_id", None) else "Superusuario",
@@ -90,13 +118,13 @@ def vecinos(request):
     return pagina(request, "territorio_vecinos", "vecinos")
 
 
-@solo_administrador
+@solo_roles(Rol.ADMINISTRADOR, Rol.DELEGADO_TERRITORIAL)
 @ensure_csrf_cookie
 def territorios(request):
     return pagina(request, "territorio_territorios", "territorios")
 
 
-@solo_administrador
+@solo_roles(Rol.ADMINISTRADOR, Rol.DELEGADO_TERRITORIAL)
 @ensure_csrf_cookie
 def juntas(request):
     return pagina(request, "territorio_juntas", "juntas-vecinos")

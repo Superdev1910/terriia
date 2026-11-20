@@ -4,15 +4,12 @@ Las pantallas solo pintan la interfaz; los datos y los permisos reales viven en 
 (/api/delegaciones/, /api/areas/, /api/cargos/), que valida el rol en el servidor.
 """
 
-from functools import wraps
-
-from django.contrib.auth.views import redirect_to_login
-from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from core.permissions import tiene_rol
+from core.permissions import solo_roles
 from core.models import Rol
+from territorio.pantallas import menu_para_usuario
 
 LOGIN_URL = "/ingresar/"  # pantalla de inicio de sesión del sitio (publico.py)
 
@@ -36,16 +33,7 @@ MENU = [
 ]
 
 
-def solo_administrador(vista):
-    @wraps(vista)
-    def envoltura(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect_to_login(request.get_full_path(), LOGIN_URL)
-        if not tiene_rol(request.user, Rol.ADMINISTRADOR):
-            raise PermissionDenied
-        return vista(request, *args, **kwargs)
-
-    return envoltura
+solo_administrador = solo_roles(Rol.ADMINISTRADOR)
 
 
 def contexto_usuario(request, activa):
@@ -53,6 +41,7 @@ def contexto_usuario(request, activa):
     delegacion = u.delegacion  # HU19: NULL = acceso global
     return {
         "menu": MENU,
+        "menu_secciones": menu_para_usuario(u),
         "activa": activa,
         "nombre_usuario": u.get_full_name() or u.email,
         "rol_usuario": u.rol.nombre if getattr(u, "rol_id", None) else "Superusuario",

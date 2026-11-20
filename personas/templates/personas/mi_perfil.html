@@ -1,0 +1,42 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Mis datos y metas{% endblock %}
+{% block contenido %}
+<div class="encabezado-pagina">
+  <div>
+    <h1>Mis datos y metas</h1>
+    <p class="subtitulo">Consulta tu ficha y las metas que tienes asignadas.</p>
+  </div>
+</div>
+
+<section class="panel" aria-labelledby="tituloFicha">
+  <h2 id="tituloFicha">Mi ficha</h2>
+  <dl class="datos-perfil">
+    <div><dt>Nombre</dt><dd id="perfilNombre">Cargando…</dd></div>
+    <div><dt>Identificador</dt><dd id="perfilIdentificador">—</dd></div>
+    <div><dt>Cargo</dt><dd id="perfilCargo">—</dd></div>
+    <div><dt>Delegación</dt><dd id="perfilDelegacion">—</dd></div>
+  </dl>
+</section>
+
+<section class="panel" aria-labelledby="tituloMetas">
+  <h2 id="tituloMetas">Mis metas asignadas</h2>
+  <div id="estadoPerfil" class="estado" role="status" aria-live="polite"></div>
+  <div class="tabla-scroll">
+    <table class="tabla">
+      <caption class="sr">Metas asignadas al funcionario</caption>
+      <thead><tr><th scope="col">Ítem</th><th scope="col">Delegación</th><th scope="col">Período</th><th scope="col">Objetivo</th></tr></thead>
+      <tbody id="cuerpoMetas"></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<style>
+  .datos-perfil { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .75rem 1.5rem; margin: 1rem 0 0; }
+  .datos-perfil div { min-width: 0; }
+  .datos-perfil dt { color: var(--gris-700); font-size: .85rem; font-weight: 700; }
+  .datos-perfil dd { margin: .2rem 0 0; }
+</style>
+<script src="{% static 'personas/js/mi_perfil.js' %}"></script>
+{% endblock %}
