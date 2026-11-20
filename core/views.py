@@ -54,15 +54,12 @@ class MantenedorViewSet(viewsets.ModelViewSet):
 
     def _validar_alcance_delegado(self, instancia):
         user = self.request.user
-        if (
-            rol_de_usuario(user) == Rol.DELEGADO_TERRITORIAL
-            and self.delegacion_lookup
-        ):
+        if rol_de_usuario(user) == Rol.DELEGADO_TERRITORIAL and self.delegacion_lookup:
             pertenece = self.get_queryset().filter(pk=instancia.pk).exists()
             relacionados = all(
-                type(instancia)._base_manager.filter(
-                    pk=instancia.pk, **{lookup: user.delegacion_id}
-                ).exists()
+                type(instancia)
+                ._base_manager.filter(pk=instancia.pk, **{lookup: user.delegacion_id})
+                .exists()
                 for lookup in self.delegacion_related_lookups
             )
             if not pertenece or not relacionados:
