@@ -7,6 +7,7 @@
   const $ = (id) => document.getElementById(id);
   let OPCIONES = { items: [], areas: [], territorios: [], tipos_atencion: [], sub_atenciones: [] };
   let vecinoId = null;
+  const AYUDA_RUT = 'Al salir del campo se completan los datos del vecino.';
 
   function esc(v) {
     return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -70,7 +71,7 @@
   async function buscarRut() {
     const rut = $('rut').value.trim();
     vecinoId = null;
-    if (!rut) { $('ayudaRut').textContent = 'Al salir del campo se completan los datos del vecino.'; return; }
+    if (!rut) { $('ayudaRut').textContent = AYUDA_RUT; return; }
     try {
       const v = await api(`/api/vecinos/buscar/?rut=${encodeURIComponent(rut)}`);
       vecinoId = v.id_vecino;
@@ -117,7 +118,7 @@
         `<p class="aviso-cascada"><i class="bi bi-exclamation-triangle"></i> <strong>No pondera:</strong> ${esc(r.motivo_no_pondera)}</p>`;
       await alerta(r.pondera ? 'success' : 'warning', 'Registro guardado',
         `<p>Código: <strong class="mono">${esc(r.codigo)}</strong></p>${aviso}`);
-      $('formActividad').reset(); vecinoId = null; $('fecha').value = fechaLocalActual(); pintarTipos();
+      $('formActividad').reset(); vecinoId = null; $('ayudaRut').textContent = AYUDA_RUT; $('fecha').value = fechaLocalActual(); pintarTipos();
     } catch (err) {
       if (!(err.campo && marcarError(err.campo, err.message))) {
         alerta('error', 'No se pudo guardar', esc(err.message));
@@ -146,7 +147,7 @@
     $('rut').addEventListener('input', () => { vecinoId = null; });
     $('formActividad').addEventListener('submit', guardar);
     $('formActividad').addEventListener('reset', () => {
-      limpiarErrores(); vecinoId = null;
+      limpiarErrores(); vecinoId = null; $('ayudaRut').textContent = AYUDA_RUT;
       setTimeout(() => { $('fecha').value = fechaLocalActual(); pintarTipos(); }, 0);
     });
   }

@@ -20,7 +20,7 @@
     <td class="mono">${esc(r.codigo)}</td><td>${esc(fechaTexto(r.fecha))}</td>
     <td>${esc(r.funcionario_nombre)}</td><td>${esc(r.item_nombre)}</td>
     <td>${r.n_evidencias}</td><td>${badge(r.estado_verificacion)}</td>
-    <td class="acciones"><button class="btn-accion" data-id="${r.id_actividad}"><i class="bi bi-eye"></i> Revisar</button></td></tr>`;
+    <td class="acciones acciones-apiladas"><button class="btn-accion" data-id="${r.id_actividad}"><i class="bi bi-eye"></i> Revisar</button></td></tr>`;
 
   function pintarPaginador(paginas) {
     if (paginas <= 1) { $('paginador').innerHTML = ''; return; }
