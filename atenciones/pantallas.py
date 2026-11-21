@@ -13,6 +13,8 @@ from organizacion.models import Area
 from organizacion.pantallas import contexto_usuario, solo_administrador
 from territorio.pantallas import MENU_SECCIONES
 
+from .verificacion import ROLES_VERIFICADORES
+
 
 def pagina(request, activa, entidad):
     datos = contexto_usuario(request, activa)
@@ -62,4 +64,14 @@ def mis_registros(request):
         request,
         "atenciones/actividad_mis_registros.html",
         contexto_usuario(request, "atenciones_mis_registros"),
+    )
+
+
+@solo_roles(*ROLES_VERIFICADORES)
+@ensure_csrf_cookie
+def verificacion(request):
+    return render(
+        request,
+        "atenciones/actividad_verificacion.html",
+        contexto_usuario(request, "atenciones_verificacion"),
     )

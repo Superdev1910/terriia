@@ -1,11 +1,19 @@
+import os
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import Rol
 
-from . import reglas
-from .models import Actividad, SubAtencion, TipoAtencion
+from . import evidencias, reglas, verificacion
+from .models import (
+    Actividad,
+    Evidencia,
+    HistorialVerificacion,
+    SubAtencion,
+    TipoAtencion,
+)
 
 
 def limpiar_nombre(value):
@@ -114,6 +122,8 @@ class ActividadSerializer(serializers.ModelSerializer):
     # TODO(Brian): convertir en FK a Hito cuando exista el modelo.
     id_hito = serializers.IntegerField(source="hito_id", required=False, allow_null=True)
     fecha = serializers.DateTimeField(required=False)
+    n_evidencias = serializers.IntegerField(read_only=True, default=0)
+    puede_editar = serializers.SerializerMethodField()
 
     class Meta:
         model = Actividad
@@ -152,6 +162,8 @@ class ActividadSerializer(serializers.ModelSerializer):
             "estado_verificacion",
             "pondera",
             "motivo_no_pondera",
+            "n_evidencias",
+            "puede_editar",
         ]
         read_only_fields = [
             "codigo",
@@ -163,28 +175,48 @@ class ActividadSerializer(serializers.ModelSerializer):
             "motivo_no_pondera",
         ]
 
+    def get_puede_editar(self, obj):
+        """Solo el autor y solo mientras esté pendiente o con antecedentes pedidos."""
+        user = self.context["request"].user
+        return (
+            obj.funcionario_id == user.funcionario_id
+            and obj.estado_verificacion in verificacion.ESTADOS_EDITABLES
+        )
+
     def get_vecino_nombre(self, obj):
         return f"{obj.vecino.nombres} {obj.vecino.apellidos}" if obj.vecino_id else ""
 
     def validate(self, attrs):
-        funcionario = self.context["request"].user.funcionario  # el autor es quien está logueado
-        fecha = attrs.get("fecha") or timezone.now()
-        vecino = attrs.get("vecino")
+        instancia = self.instance
+        # El autor es quien está logueado; al editar sigue siendo el autor original.
+        funcionario = (
+            instancia.funcionario if instancia else self.context["request"].user.funcionario
+        )
+
+        def valor(campo, defecto=None):
+            if campo in attrs:
+                return attrs[campo]
+            return getattr(instancia, campo, defecto) if instancia else defecto
+
+        fecha = valor("fecha") or timezone.now()
+        vecino = valor("vecino")
         try:
             reglas.validar_actividad(
                 funcionario=funcionario,
-                item=attrs.get("item"),
+                item=valor("item"),
                 fecha=fecha,
-                area=attrs.get("area"),
-                territorio=attrs.get("territorio"),
+                area=valor("area"),
+                territorio=valor("territorio"),
                 vecino=vecino,
-                tipo_atencion=attrs.get("tipo_atencion"),
-                sub_atencion=attrs.get("sub_atencion"),
+                tipo_atencion=valor("tipo_atencion"),
+                sub_atencion=valor("sub_atencion"),
+                excluir_pk=instancia.pk if instancia else None,
+                validar_fecha_registro=instancia is None or "fecha" in attrs,
             )
         except DjangoValidationError as e:
             raise serializers.ValidationError(e.message_dict)
-        solicitante = attrs.get("delegado_solicitante")
-        if attrs.get("origen") == Actividad.ORIGEN_DELEGADO and solicitante is None:
+        solicitante = valor("delegado_solicitante")
+        if valor("origen") == Actividad.ORIGEN_DELEGADO and solicitante is None:
             raise serializers.ValidationError(
                 {"delegado_solicitante": "Indique el delegado que solicita la actividad."}
             )
@@ -196,8 +228,86 @@ class ActividadSerializer(serializers.ModelSerializer):
         attrs["funcionario"] = funcionario
         attrs["pondera"], attrs["motivo_no_pondera"] = reglas.calcular_ponderacion(
             vecino=vecino,
-            contacto=attrs.get("contacto", ""),
-            telefono=attrs.get("telefono", ""),
-            es_coordinacion_preparatoria=attrs.get("es_coordinacion_preparatoria", False),
+            contacto=valor("contacto", ""),
+            telefono=valor("telefono", ""),
+            es_coordinacion_preparatoria=valor("es_coordinacion_preparatoria", False),
         )
         return attrs
+
+
+class HistorialVerificacionSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HistorialVerificacion
+        fields = [
+            "id_historial",
+            "usuario",
+            "usuario_nombre",
+            "estado_anterior",
+            "estado_nuevo",
+            "observacion",
+            "fecha",
+        ]
+
+    def get_usuario_nombre(self, obj):
+        return obj.usuario.get_full_name() or obj.usuario.email
+
+
+class EvidenciaSerializer(serializers.ModelSerializer):
+    """No expone la ruta del archivo: se descarga por /api/evidencias/<id>/archivo/."""
+
+    archivo = serializers.FileField(write_only=True)
+    descarga = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Evidencia
+        fields = [
+            "id_evidencia",
+            "actividad",
+            "archivo",
+            "codigo_verificador",
+            "nombre_original",
+            "tipo_contenido",
+            "tamano",
+            "autor",
+            "fecha",
+            "tiene_imagen",
+            "estado_revision",
+            "descarga",
+        ]
+        read_only_fields = [
+            "codigo_verificador",
+            "nombre_original",
+            "tipo_contenido",
+            "tamano",
+            "autor",
+            "fecha",
+            "tiene_imagen",
+            "estado_revision",
+        ]
+
+    def get_descarga(self, obj):
+        return f"/api/evidencias/{obj.pk}/archivo/"
+
+    def validate_archivo(self, archivo):
+        try:
+            tipo, extension = evidencias.validar_archivo(archivo)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.messages[0])
+        self._tipo = tipo
+        self._nombre_original = os.path.basename(archivo.name)[:150]
+        archivo.name = f"evidencia{extension}"  # la ruta final usa uuid; la extensión es la real
+        return archivo
+
+    def create(self, validated_data):
+        archivo = validated_data["archivo"]
+        return Evidencia.objects.create(
+            actividad=validated_data["actividad"],
+            archivo=archivo,
+            nombre_original=self._nombre_original,
+            tipo_contenido=self._tipo,
+            tamano=archivo.size,
+            tiene_imagen=self._tipo.startswith("image/"),
+            autor=self.context["request"].user,
+        )

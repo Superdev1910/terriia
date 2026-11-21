@@ -1,10 +1,18 @@
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Count
+from django.http import FileResponse, HttpResponse
+from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
-from rest_framework import status
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core import auditoria
 from core.models import Rol
 from core.permissions import rol_de_usuario
 from core.validators import normalizar_rut, rut_es_valido
@@ -14,9 +22,16 @@ from organizacion.models import Area
 from organizacion.paginacion import PaginacionMantenedor
 from territorio.models import Territorio, Vecino
 
-from .models import Actividad, SubAtencion, TipoAtencion
+from . import verificacion
+from .models import Actividad, Evidencia, SubAtencion, TipoAtencion
 from .reglas import vecino_pertenece_a_delegacion
-from .serializers import ActividadSerializer, SubAtencionSerializer, TipoAtencionSerializer
+from .serializers import (
+    ActividadSerializer,
+    EvidenciaSerializer,
+    HistorialVerificacionSerializer,
+    SubAtencionSerializer,
+    TipoAtencionSerializer,
+)
 
 
 class TipoAtencionViewSet(MantenedorViewSet):
@@ -77,8 +92,27 @@ class PuedeRegistrarActividades(BasePermission):
                 return rol in ROLES_QUE_REGISTRAN and tiene_ficha_activa(user)
             return rol in ROLES_QUE_CONSULTAN
         if request.method != "POST":
-            return rol is not None  # PUT/PATCH/DELETE: el ViewSet responde 405
+            # PUT/PATCH: solo el autor edita (se valida en verificacion.validar_edicion, que
+            # responde 403 o 409); DELETE: el ViewSet responde 405.
+            return rol is not None
         return rol in ROLES_QUE_REGISTRAN and tiene_ficha_activa(user)
+
+
+class PuedeVerificar(BasePermission):
+    """Delegado, Encargado de área, Jefe de delegaciones y Administrador (el alcance se ve
+    por actividad en atenciones/verificacion.py)."""
+
+    message = "Tu rol no puede verificar actividades."
+
+    def has_permission(self, request, view):
+        return rol_de_usuario(request.user) in verificacion.ROLES_VERIFICADORES
+
+
+class PuedeConsultarEvidencias(BasePermission):
+    message = "No tienes permiso para ver evidencias."
+
+    def has_permission(self, request, view):
+        return rol_de_usuario(request.user) in ROLES_QUE_CONSULTAN
 
 
 def filtrar_por_alcance(queryset, user, lookup):
@@ -92,10 +126,16 @@ class ActividadFiltro(filters.FilterSet):
     desde = filters.DateFilter(field_name="fecha", lookup_expr="date__gte")
     hasta = filters.DateFilter(field_name="fecha", lookup_expr="date__lte")
     mis_registros = filters.BooleanFilter(method="filtrar_mis_registros")
+    no_propias = filters.BooleanFilter(method="filtrar_no_propias")
 
     class Meta:
         model = Actividad
         fields = ["tipo_registro", "estado", "estado_verificacion", "pondera", "item", "area"]
+
+    def filtrar_no_propias(self, queryset, nombre, valor):
+        if valor:
+            return queryset.exclude(funcionario_id=self.request.user.funcionario_id)
+        return queryset
 
     def filtrar_mis_registros(self, queryset, nombre, valor):
         if valor:
@@ -104,18 +144,25 @@ class ActividadFiltro(filters.FilterSet):
 
 
 class ActividadViewSet(MantenedorViewSet):
-    """Alta y consulta de actividades. No se borran ni se editan desde la API (405)."""
+    """Alta, consulta y edición (solo el autor, en pendiente o antecedentes). Sin DELETE (405).
+
+    Las operaciones sobre un registro puntual (editar, verificar) devuelven 403 si es de otra
+    delegación y 404 solo si no existe; la lectura (retrieve/list) sigue dando 404.
+    """
 
     permission_classes = [PuedeRegistrarActividades]
-    queryset = Actividad.objects.select_related(
-        "funcionario", "item", "vecino", "territorio", "area", "tipo_atencion", "sub_atencion"
+    queryset = (
+        Actividad.objects.select_related(
+            "funcionario", "item", "vecino", "territorio", "area", "tipo_atencion", "sub_atencion"
+        )
+        .annotate(n_evidencias=Count("evidencias", distinct=True))
+        .order_by("-fecha", "-id_actividad")
     )
     serializer_class = ActividadSerializer
     filterset_class = ActividadFiltro
     search_fields = ["codigo", "descripcion", "vecino__rut", "vecino__nombres", "vecino__apellidos"]
     ordering_fields = ["fecha", "fecha_registro", "codigo"]
-    http_method_names = ["get", "post", "head", "options"]
-    # TODO(Fernando): permitir editar/anular con rol y delegación cuando se defina el flujo.
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
     def get_queryset(self):
         # super(MantenedorViewSet, self): se salta el alcance genérico y usa el de actividades.
@@ -126,6 +173,55 @@ class ActividadViewSet(MantenedorViewSet):
         if rol_de_usuario(user) == Rol.FUNCIONARIO:
             return queryset.filter(funcionario_id=user.funcionario_id)  # solo lo propio
         return queryset
+
+    def get_object(self):
+        if self.action in ("retrieve", "historial"):
+            return super().get_object()  # lectura: fuera de alcance = 404
+        actividad = get_object_or_404(
+            Actividad.objects.select_related("funcionario"), pk=self.kwargs["pk"]
+        )
+        if not verificacion.en_alcance(self.request.user, actividad):
+            raise PermissionDenied("La actividad pertenece a otra delegación.")
+        if self.action in ("update", "partial_update"):
+            verificacion.validar_edicion(self.request.user, actividad)
+            # Se vuelve a cargar con el queryset del serializer (anotaciones y relaciones).
+            actividad = Actividad.objects.get(pk=actividad.pk)
+        return actividad
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        with transaction.atomic():
+            anterior = auditoria.foto(serializer.instance)
+            instancia = serializer.save()
+            verificacion.reabrir_por_edicion(user, instancia)  # antecedentes -> pendiente
+            auditoria.registrar(
+                user, "editar", instancia, anterior=anterior, nuevo=auditoria.foto(instancia)
+            )
+
+    @action(detail=True, methods=["post"], permission_classes=[PuedeVerificar])
+    def verificar(self, request, pk=None):
+        """Aprobar, rechazar o pedir antecedentes: {"accion"|"estado": ..., "observacion": ...}."""
+        actividad = self.get_object()
+        accion = request.data.get("accion") or request.data.get("estado")
+        actividad = verificacion.verificar(
+            request.user, actividad, accion, request.data.get("observacion", "")
+        )
+        return Response(
+            {
+                "id_actividad": actividad.pk,
+                "codigo": actividad.codigo,
+                "estado_verificacion": actividad.estado_verificacion,
+            }
+        )
+
+    @action(detail=True, methods=["get"])
+    def historial(self, request, pk=None):
+        actividad = self.get_object()
+        return Response(
+            HistorialVerificacionSerializer(
+                actividad.historial_verificacion.select_related("usuario"), many=True
+            ).data
+        )
 
     @action(detail=False, methods=["get"])
     def opciones(self, request):
@@ -193,3 +289,87 @@ class BuscarVecinoView(APIView):
                 "direccion": vecino.direccion,
             }
         )
+
+
+class EvidenciaViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Evidencias de una actividad. El archivo no tiene URL pública: se baja por /archivo/."""
+
+    permission_classes = [PuedeConsultarEvidencias]
+    queryset = Evidencia.objects.select_related("actividad__funcionario")
+    serializer_class = EvidenciaSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    filterset_fields = ["actividad"]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = filtrar_por_alcance(
+            super().get_queryset(), user, "actividad__funcionario__delegacion_id"
+        )
+        if rol_de_usuario(user) == Rol.FUNCIONARIO:
+            return queryset.filter(actividad__funcionario_id=user.funcionario_id)
+        return queryset
+
+    def get_object(self):
+        if self.action == "retrieve":
+            return super().get_object()
+        evidencia = get_object_or_404(self.queryset, pk=self.kwargs["pk"])
+        actividad = evidencia.actividad
+        permitido = (
+            verificacion.puede_gestionar_evidencias
+            if self.action == "destroy"
+            else verificacion.puede_ver
+        )
+        if not permitido(self.request.user, actividad):
+            raise PermissionDenied("La evidencia pertenece a otra delegación.")
+        return evidencia
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        actividad = serializer.validated_data["actividad"]
+        if not verificacion.puede_gestionar_evidencias(user, actividad):
+            raise PermissionDenied("Solo el autor o quien verifica puede subir evidencias.")
+        verificacion.validar_modificable(actividad)
+        with transaction.atomic():
+            evidencia = serializer.save()
+            nuevo = auditoria.foto(evidencia)
+            nuevo.pop("archivo", None)
+            auditoria.registrar(user, "crear", evidencia, nuevo=nuevo)
+
+    def destroy(self, request, *args, **kwargs):
+        evidencia = self.get_object()
+        verificacion.validar_modificable(evidencia.actividad)
+        with transaction.atomic():
+            anterior = auditoria.foto(evidencia)
+            anterior.pop("archivo", None)
+            auditoria.registrar(request.user, "eliminar", evidencia, anterior=anterior)
+            evidencia.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"])
+    def archivo(self, request, pk=None):
+        """Descarga con control de delegación. Con EVIDENCIAS_X_ACCEL_PREFIX (nginx interno)
+        el envío del archivo se delega en nginx con X-Accel-Redirect."""
+        evidencia = self.get_object()
+        nombre = evidencia.nombre_original or evidencia.codigo_verificador
+        prefijo = settings.EVIDENCIAS_X_ACCEL_PREFIX
+        if prefijo:
+            respuesta = HttpResponse(content_type=evidencia.tipo_contenido)
+            destino = prefijo.rstrip("/") + "/" + evidencia.archivo.name
+            respuesta["X-Accel-Redirect"] = destino
+            codigo = evidencia.codigo_verificador
+            respuesta["Content-Disposition"] = f'attachment; filename="{codigo}"'
+        else:
+            respuesta = FileResponse(
+                evidencia.archivo.open("rb"),
+                as_attachment=True,
+                filename=nombre,
+                content_type=evidencia.tipo_contenido,
+            )
+        respuesta["X-Content-Type-Options"] = "nosniff"
+        return respuesta

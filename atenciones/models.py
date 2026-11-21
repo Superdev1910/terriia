@@ -6,6 +6,12 @@ Cada área ofrece sus tipos de atención y cada tipo se divide en sub atenciones
 SCRUM-62 agrega Actividad (actividades y gestiones sociales) y su contador de código.
 """
 
+import os
+import secrets
+import string
+import uuid
+
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
@@ -249,6 +255,7 @@ class Actividad(models.Model):
         """Mismas reglas que el serializer (atenciones/reglas.py)."""
         from . import reglas
 
+        self.verificar_no_aprobada()
         reglas.validar_actividad(
             funcionario=self.funcionario,
             item=self.item,
@@ -267,7 +274,20 @@ class Actividad(models.Model):
             es_coordinacion_preparatoria=self.es_coordinacion_preparatoria,
         )
 
+    def verificar_no_aprobada(self):
+        """Una actividad aprobada en la base de datos no se modifica (ni por API ni por admin)."""
+        if self.pk and not self._state.adding:
+            actual = (
+                type(self)
+                .objects.filter(pk=self.pk)
+                .values_list("estado_verificacion", flat=True)
+                .first()
+            )
+            if actual == self.VERIF_APROBADA:
+                raise ValidationError("La actividad está aprobada y no se puede modificar.")
+
     def save(self, *args, **kwargs):
+        self.verificar_no_aprobada()
         if self.codigo:
             return super().save(*args, **kwargs)
         # Reintento: dos registros simultáneos pueden chocar al crear el contador del año.
@@ -295,3 +315,112 @@ def siguiente_codigo(delegacion):
     contador.ultimo += 1
     contador.save(update_fields=["ultimo"])
     return f"{delegacion.codigo}-{anio}-{contador.ultimo:05d}"
+
+
+class HistorialVerificacion(models.Model):
+    """Cada cambio de estado_verificacion de una actividad (quién, cuándo y por qué)."""
+
+    id_historial = models.AutoField(primary_key=True)
+    actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.PROTECT,
+        db_column="id_actividad",
+        related_name="historial_verificacion",
+    )
+    usuario = models.ForeignKey(
+        "personas.Usuario",
+        on_delete=models.PROTECT,
+        db_column="id_usuario",
+        related_name="verificaciones",
+    )
+    estado_anterior = models.CharField(max_length=12, choices=Actividad.ESTADOS_VERIFICACION)
+    estado_nuevo = models.CharField(max_length=12, choices=Actividad.ESTADOS_VERIFICACION)
+    observacion = models.TextField(blank=True, default="")
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "historial_verificacion"
+        ordering = ["fecha", "id_historial"]
+        verbose_name_plural = "historial de verificación"
+
+    def __str__(self):
+        return f"{self.actividad_id}: {self.estado_anterior} -> {self.estado_nuevo}"
+
+
+def ruta_evidencia(instancia, nombre_archivo):
+    """Nombre uuid (nunca el del usuario) en carpetas por año; sin URL pública."""
+    extension = os.path.splitext(nombre_archivo)[1].lower()
+    return f"evidencias/{timezone.localdate().year}/{uuid.uuid4().hex}{extension}"
+
+
+def generar_codigo_verificador():
+    """3 letras mayúsculas + 3 dígitos (ej. ORC711)."""
+    letras = "".join(secrets.choice(string.ascii_uppercase) for _ in range(3))
+    digitos = "".join(secrets.choice(string.digits) for _ in range(3))
+    return letras + digitos
+
+
+class Evidencia(models.Model):
+    """Tabla `evidencia` (SQL v2.4 + delta v2.6). El archivo solo se descarga por la API."""
+
+    PENDIENTE, REVISADO = "pendiente", "revisado"
+    ESTADOS_REVISION = [(PENDIENTE, "Pendiente"), (REVISADO, "Revisado")]
+
+    id_evidencia = models.AutoField(primary_key=True)
+    actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.PROTECT,
+        db_column="id_actividad",
+        related_name="evidencias",
+    )
+    codigo_verificador = models.CharField(max_length=10, unique=True, editable=False)
+    archivo = models.FileField(upload_to=ruta_evidencia, max_length=255)
+    nombre_original = models.CharField(max_length=150, blank=True, default="")
+    # Detectado en el servidor por la firma del archivo
+    tipo_contenido = models.CharField(max_length=30, blank=True, default="")
+    tamano = models.PositiveIntegerField(default=0)
+    autor = models.ForeignKey(
+        "personas.Usuario",
+        on_delete=models.PROTECT,
+        db_column="autor_usuario_id",
+        related_name="evidencias",
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+    tiene_imagen = models.BooleanField(default=False)
+    estado_revision = models.CharField(max_length=9, choices=ESTADOS_REVISION, default=PENDIENTE)
+
+    class Meta:
+        db_table = "evidencia"
+        ordering = ["fecha", "id_evidencia"]
+
+    def __str__(self):
+        return self.codigo_verificador
+
+    def _verificar_actividad_no_aprobada(self):
+        actual = Actividad.objects.filter(pk=self.actividad_id).values_list(
+            "estado_verificacion", flat=True
+        ).first()
+        if actual == Actividad.VERIF_APROBADA:
+            raise ValidationError("La actividad está aprobada: no se modifican sus evidencias.")
+
+    def save(self, *args, **kwargs):
+        self._verificar_actividad_no_aprobada()
+        if self.codigo_verificador:
+            return super().save(*args, **kwargs)
+        for intento in range(5):  # el UNIQUE evita repetidos; si choca se prueba otro código
+            try:
+                with transaction.atomic():
+                    self.codigo_verificador = generar_codigo_verificador()
+                    return super().save(*args, **kwargs)
+            except IntegrityError:
+                self.codigo_verificador = ""
+                if intento == 4:
+                    raise
+
+    def delete(self, *args, **kwargs):
+        self._verificar_actividad_no_aprobada()
+        archivo = self.archivo
+        resultado = super().delete(*args, **kwargs)
+        if archivo:
+            archivo.delete(save=False)
+        return resultado

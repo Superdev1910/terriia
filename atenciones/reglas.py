@@ -127,8 +127,10 @@ def validar_actividad(
     sub_atencion=None,
     excluir_pk=None,
     ahora=None,
+    validar_fecha_registro=True,
 ):
-    validar_fecha(fecha, funcionario, excluir_pk=excluir_pk, ahora=ahora)
+    if validar_fecha_registro:  # al editar sin cambiar la fecha no se vuelve a exigir
+        validar_fecha(fecha, funcionario, excluir_pk=excluir_pk, ahora=ahora)
     validar_consistencia(funcionario, item, area, territorio, vecino, tipo_atencion, sub_atencion)
 
 

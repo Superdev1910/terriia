@@ -2,7 +2,7 @@
 {% load static %}
 {% block titulo %}Mis registros{% endblock %}
 {% block contenido %}
-<link rel="stylesheet" href="{% static 'atenciones/css/actividad.css' %}?v=20261121-1">
+<link rel="stylesheet" href="{% static 'atenciones/css/actividad.css' %}?v=20261121-2">
 <div class="encabezado-pagina">
   <div>
     <h1>Mis registros</h1>
@@ -52,7 +52,7 @@
         <tr>
           <th scope="col">Código</th><th scope="col">Fecha</th><th scope="col">Tipo</th>
           <th scope="col">Ítem</th><th scope="col">Vecino</th><th scope="col">Pondera</th>
-          <th scope="col">Verificación</th>
+          <th scope="col">Verificación</th><th scope="col"><span class="sr">Acciones</span></th>
         </tr>
       </thead>
       <tbody id="cuerpoTabla"></tbody>
@@ -69,5 +69,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="{% static 'atenciones/js/actividad_mis_registros.js' %}?v=20261121-1"></script>
+<script src="{% static 'atenciones/js/actividad_comun.js' %}?v=20261121-2"></script>
+<script src="{% static 'atenciones/js/actividad_mis_registros.js' %}?v=20261121-2"></script>
 {% endblock %}

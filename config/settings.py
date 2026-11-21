@@ -167,6 +167,12 @@ RECUPERACION_INTENTOS = 5
 # A confirmar con el cliente.
 SEMANA_CIERRE_DIAS_GRACIA = int(os.getenv("SEMANA_CIERRE_DIAS_GRACIA", "1"))
 
+# Evidencias: /media/ NO se sirve desde Django (config/urls.py). Los archivos salen por
+# /api/evidencias/<id>/archivo/ con control de delegación. Si se define este prefijo (ej.
+# /protegido-media/, un `location ... internal;` de nginx hacia MEDIA_ROOT), Django responde con
+# X-Accel-Redirect y nginx entrega el archivo.
+EVIDENCIAS_X_ACCEL_PREFIX = os.getenv("EVIDENCIAS_X_ACCEL_PREFIX", "")
+
 # Detrás de Nginx en producción
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

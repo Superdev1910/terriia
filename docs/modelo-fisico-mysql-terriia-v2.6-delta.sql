@@ -69,3 +69,37 @@ ALTER TABLE actividad
 --     coordinación preparatoria.
 --   - Ítem del cargo del funcionario; área, territorio y vecino de la delegación del funcionario;
 --     sub atención del tipo elegido; catálogos activos.
+
+-- ---------------------------------------------------------------------
+-- SCRUM-123 · Verificación y evidencias (migración atenciones/0004_verificacion_evidencias)
+--   - NUEVA tabla historial_verificacion: cada cambio de actividad.estado_verificacion.
+--   - evidencia (v2.4): archivo_url pasa a archivo (ruta relativa PRIVADA, nunca una URL pública;
+--     se descarga por /api/evidencias/<id>/archivo/) y se agregan nombre_original,
+--     tipo_contenido (detectado por firma: JPG, PNG o PDF), tamano (máx. 5 MB, en la aplicación)
+--     y la unicidad del codigo_verificador (3 letras + 3 dígitos, generado por el servidor).
+--   - Reglas en la aplicación: transiciones pendiente -> aprobada|rechazada|antecedentes,
+--     antecedentes -> pendiente al editar el autor; aprobada y rechazada son finales; una
+--     actividad aprobada no se modifica ni cambia sus evidencias.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE historial_verificacion (
+    id_historial     INT AUTO_INCREMENT PRIMARY KEY,
+    id_actividad     INT NOT NULL,
+    id_usuario       INT NOT NULL,                              -- quien hizo el cambio
+    estado_anterior  ENUM('pendiente','aprobada','rechazada','antecedentes') NOT NULL,
+    estado_nuevo     ENUM('pendiente','aprobada','rechazada','antecedentes') NOT NULL,
+    observacion      TEXT NOT NULL,                             -- obligatoria al rechazar o pedir antecedentes
+    fecha            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_actividad) REFERENCES actividad(id_actividad),
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario),
+    INDEX ix_historial_verificacion_actividad (id_actividad, fecha)
+) ENGINE=InnoDB;
+
+ALTER TABLE evidencia
+    CHANGE COLUMN archivo_url archivo VARCHAR(255) NOT NULL,   -- ruta relativa a MEDIA_ROOT (nombre uuid)
+    MODIFY COLUMN codigo_verificador VARCHAR(10) NOT NULL,
+    MODIFY COLUMN fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ADD COLUMN nombre_original VARCHAR(150) NOT NULL DEFAULT '' AFTER archivo,
+    ADD COLUMN tipo_contenido  VARCHAR(30)  NOT NULL DEFAULT '' AFTER nombre_original,
+    ADD COLUMN tamano          INT UNSIGNED NOT NULL DEFAULT 0 AFTER tipo_contenido,
+    ADD UNIQUE KEY evidencia_codigo_verificador_uniq (codigo_verificador);

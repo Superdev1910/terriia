@@ -315,11 +315,11 @@ class ActividadExtrasTests(ActividadBase):
             actividad.clean()
         self.assertIn("item", ctx.exception.message_dict)
 
-    def test_solo_get_y_post(self):
+    def test_delete_da_405(self):
         self.client.force_authenticate(self.user_a)
         creada = self.registrar().data
         self.client.force_authenticate(self.user_a)
-        self.assertEqual(self.client.patch(f"{URL}{creada['id_actividad']}/", {}).status_code, 405)
+        self.assertEqual(self.client.delete(f"{URL}{creada['id_actividad']}/").status_code, 405)
 
     def test_pantallas_y_menu(self):
         self.client.force_login(self.user_a)
