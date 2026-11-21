@@ -1,5 +1,6 @@
 /* Pantallas de actividades (SCRUM-62). Usa las variables de organizacion/css/terriia.css. */
 .panel-form { padding: 1.25rem; }
+.sin-borde { border: 0; padding: 0; margin: 0; min-width: 0; }
 .form-grilla { display: grid; gap: 1rem 1.25rem; grid-template-columns: repeat(2, 1fr); }
 .form-grilla fieldset.campo { border: 0; padding: 0; margin: 0; display: flex; gap: 1.25rem; flex-wrap: wrap; }
 .form-grilla legend { font-weight: 700; font-size: .88rem; margin-bottom: .4rem; padding: 0; }

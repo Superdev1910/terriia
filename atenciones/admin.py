@@ -1,4 +1,7 @@
 from django.contrib import admin
+from django.db import transaction
+
+from core import auditoria
 
 from .models import Actividad, SubAtencion, TipoAtencion
 
@@ -25,7 +28,22 @@ class ActividadAdmin(admin.ModelAdmin):
     list_display = ["codigo", "funcionario", "tipo_registro", "fecha", "estado_verificacion"]
     list_filter = ["tipo_registro", "estado_verificacion"]
     search_fields = ["codigo", "funcionario__nombre"]
-    readonly_fields = ["codigo", "fecha_registro", "estado_verificacion", "pondera"]
+    # El autor y el código nunca se cambian desde el admin (tampoco el estado de verificación).
+    readonly_fields = ["codigo", "funcionario", "fecha_registro", "estado_verificacion", "pondera"]
+
+    def save_model(self, request, obj, form, change):
+        anterior = None
+        if change:
+            anterior = auditoria.foto(Actividad.objects.get(pk=obj.pk))
+        with transaction.atomic():
+            super().save_model(request, obj, form, change)
+            auditoria.registrar(
+                request.user,
+                "editar",
+                obj,
+                anterior=anterior,
+                nuevo=auditoria.foto(obj),
+            )
 
     def has_add_permission(self, request):
         return False

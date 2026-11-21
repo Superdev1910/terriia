@@ -38,6 +38,10 @@ ROLES_VERIFICADORES = (
     Rol.ADMINISTRADOR,
 )
 ROLES_GLOBALES = (Rol.JEFE_DELEGACIONES, Rol.ADMINISTRADOR)
+# Quienes ven todas las delegaciones. Un Delegado, Encargado o Funcionario sin delegación NO
+# tiene acceso global: no ve nada (el rol, no el dato vacío, decide).
+# TODO(Fernando): exigir delegación según el rol al crear o editar usuarios (personas/serializers.py).
+ROLES_ACCESO_GLOBAL = (Rol.ADMINISTRADOR, Rol.JEFE_DELEGACIONES, Rol.ALCALDESA)
 
 
 class Conflicto(APIException):
@@ -46,15 +50,31 @@ class Conflicto(APIException):
     default_code = "conflicto"
 
 
+def acceso_global(usuario):
+    return rol_de_usuario(usuario) in ROLES_ACCESO_GLOBAL
+
+
+def tiene_alcance(usuario):
+    """Acceso global o una delegación asignada. Sin ninguno de los dos no se ve nada."""
+    return acceso_global(usuario) or usuario.delegacion_id is not None
+
+
+def tiene_ficha_activa(usuario):
+    return bool(usuario.funcionario_id) and usuario.funcionario.estado == "activo"
+
+
 def es_autor(usuario, actividad):
     return bool(usuario.funcionario_id) and actividad.funcionario_id == usuario.funcionario_id
 
 
 def en_alcance(usuario, actividad):
-    """Misma delegación del autor; Administrador y usuarios sin delegación ven todo."""
-    if rol_de_usuario(usuario) == Rol.ADMINISTRADOR or usuario.delegacion_id is None:
+    """Misma delegación del autor; Administrador, Jefe de delegaciones y Alcaldesa ven todo."""
+    if acceso_global(usuario):
         return True
-    return usuario.delegacion_id == actividad.funcionario.delegacion_id
+    return (
+        usuario.delegacion_id is not None
+        and usuario.delegacion_id == actividad.funcionario.delegacion_id
+    )
 
 
 def puede_verificar(usuario, actividad):
@@ -65,7 +85,10 @@ def puede_verificar(usuario, actividad):
         return False
     if rol in ROLES_GLOBALES:
         return True
-    return usuario.delegacion_id == actividad.funcionario.delegacion_id
+    return (
+        usuario.delegacion_id is not None
+        and usuario.delegacion_id == actividad.funcionario.delegacion_id
+    )
 
 
 def puede_gestionar_evidencias(usuario, actividad):
@@ -91,8 +114,8 @@ def validar_modificable(actividad):
 def validar_edicion(usuario, actividad):
     """Edita solo el autor y solo en pendiente o antecedentes (409 si ya no es editable)."""
     validar_modificable(actividad)
-    if not es_autor(usuario, actividad):
-        raise PermissionDenied("Solo el autor puede editar la actividad.")
+    if not es_autor(usuario, actividad) or not tiene_ficha_activa(usuario):
+        raise PermissionDenied("Solo el autor con ficha activa puede editar la actividad.")
     if actividad.estado_verificacion not in ESTADOS_EDITABLES:
         raise Conflicto("Una actividad rechazada no se puede editar.")
 

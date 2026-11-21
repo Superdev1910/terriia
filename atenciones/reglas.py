@@ -89,19 +89,19 @@ def validar_consistencia(
             errores["item"] = "El ítem está inactivo."
     if area is not None:
         if area.delegacion_id != delegacion_id:
-            errores["area"] = "El área no pertenece a la delegación del funcionario."
+            errores["area"] = "El área no es válida para tu delegación."
         elif area.estado != "activa":
             errores["area"] = "El área está inactiva."
     if territorio is not None:
         if territorio.delegacion_id != delegacion_id:
-            errores["territorio"] = "El territorio no pertenece a la delegación del funcionario."
+            errores["territorio"] = "El territorio no es válido para tu delegación."
         elif not territorio.activo:
             errores["territorio"] = "El territorio está inactivo."
     if vecino is not None:
         if vecino.estado != "activo":
-            errores["vecino"] = "El vecino está inactivo."
+            errores["vecino"] = "El vecino no es válido para tu delegación."
         elif not vecino_pertenece_a_delegacion(vecino, delegacion_id):
-            errores["vecino"] = "El vecino pertenece a otra delegación."
+            errores["vecino"] = "El vecino no es válido para tu delegación."
     if tipo_atencion is not None:
         if not tipo_atencion.activo:
             errores["tipo_atencion"] = "El tipo de atención está inactivo."
@@ -129,7 +129,9 @@ def validar_actividad(
     ahora=None,
     validar_fecha_registro=True,
 ):
-    if validar_fecha_registro:  # al editar sin cambiar la fecha no se vuelve a exigir
+    # TODO(Patricio): confirmar con el cliente si se puede editar un registro de una semana
+    # cerrada. Hoy, al editar sin cambiar la fecha, no se vuelve a exigir el cierre de semana.
+    if validar_fecha_registro:
         validar_fecha(fecha, funcionario, excluir_pk=excluir_pk, ahora=ahora)
     validar_consistencia(funcionario, item, area, territorio, vecino, tipo_atencion, sub_atencion)
 

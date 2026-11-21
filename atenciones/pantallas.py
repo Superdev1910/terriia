@@ -13,7 +13,7 @@ from organizacion.models import Area
 from organizacion.pantallas import contexto_usuario, solo_administrador
 from territorio.pantallas import MENU_SECCIONES
 
-from .verificacion import ROLES_VERIFICADORES
+from .verificacion import ROLES_VERIFICADORES, tiene_ficha_activa
 
 
 def pagina(request, activa, entidad):
@@ -50,11 +50,9 @@ solo_quienes_registran = solo_roles(
 @solo_quienes_registran
 @ensure_csrf_cookie
 def registrar_actividad(request):
-    return render(
-        request,
-        "atenciones/actividad_registrar.html",
-        contexto_usuario(request, "atenciones_registrar"),
-    )
+    datos = contexto_usuario(request, "atenciones_registrar")
+    datos["sin_ficha"] = not tiene_ficha_activa(request.user)  # sin ficha no se puede registrar
+    return render(request, "atenciones/actividad_registrar.html", datos)
 
 
 @solo_quienes_registran

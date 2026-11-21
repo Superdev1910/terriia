@@ -311,3 +311,20 @@ class EvidenciaSerializer(serializers.ModelSerializer):
             tiene_imagen=self._tipo.startswith("image/"),
             autor=self.context["request"].user,
         )
+
+
+class VerificarSerializer(serializers.Serializer):
+    """Entrada de POST /api/actividades/<id>/verificar/: acción (o estado) y observación."""
+
+    accion = serializers.CharField(required=False)
+    estado = serializers.CharField(required=False)
+    observacion = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        valor = (attrs.get("accion") or attrs.get("estado") or "").strip().lower()
+        if valor not in verificacion.ACCIONES:
+            raise serializers.ValidationError({"accion": "Use aprobar, rechazar o antecedentes."})
+        # CharField convierte números a texto; aquí se exige texto de verdad.
+        if not isinstance(self.initial_data.get("observacion", ""), str):
+            raise serializers.ValidationError({"observacion": "La observación debe ser texto."})
+        return {"accion": valor, "observacion": attrs.get("observacion", "").strip()}

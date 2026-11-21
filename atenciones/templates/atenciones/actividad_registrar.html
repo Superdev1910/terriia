@@ -14,7 +14,13 @@
 </div>
 
 <section class="panel panel-form" aria-label="Formulario de actividad">
-  <form id="formActividad" novalidate>
+  {% if sin_ficha %}
+  <p class="aviso-cascada" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+    Tu usuario no tiene una ficha de funcionario activa, por lo que no puedes registrar actividades.
+    Pide al administrador que la asocie o la active.</p>
+  {% endif %}
+  <form id="formActividad" novalidate {% if sin_ficha %}data-sin-ficha="1"{% endif %}>
+   <fieldset class="sin-borde" {% if sin_ficha %}disabled{% endif %}>
     <div class="form-grilla">
       <fieldset class="campo ancho">
         <legend>Tipo de registro <span class="oblig">*</span></legend>
@@ -90,10 +96,11 @@
         <label class="opcion"><input type="checkbox" id="ingreso_a_tubo"> Ingresa al Tubo</label>
       </div>
     </div>
+   </fieldset>
 
     <div class="form-pie">
-      <button type="reset" class="btn btn-borde" id="btnLimpiar">Limpiar</button>
-      <button type="submit" class="btn btn-primario" id="btnGuardar"><i class="bi bi-check-lg"></i> Guardar registro</button>
+      <button type="reset" class="btn btn-borde" id="btnLimpiar" {% if sin_ficha %}disabled{% endif %}>Limpiar</button>
+      <button type="submit" class="btn btn-primario" id="btnGuardar" {% if sin_ficha %}disabled{% endif %}><i class="bi bi-check-lg"></i> Guardar registro</button>
     </div>
   </form>
 </section>

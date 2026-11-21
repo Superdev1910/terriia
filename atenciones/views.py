@@ -1,4 +1,7 @@
+import os
+
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count
 from django.http import FileResponse, HttpResponse
@@ -6,10 +9,11 @@ from django.shortcuts import get_object_or_404
 from django_filters import rest_framework as filters
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from core import auditoria
@@ -20,17 +24,18 @@ from core.views import MantenedorViewSet
 from metas.models import Item
 from organizacion.models import Area
 from organizacion.paginacion import PaginacionMantenedor
+from personas.models import Funcionario
 from territorio.models import Territorio, Vecino
 
-from . import verificacion
+from . import reglas, verificacion
 from .models import Actividad, Evidencia, SubAtencion, TipoAtencion
-from .reglas import vecino_pertenece_a_delegacion
 from .serializers import (
     ActividadSerializer,
     EvidenciaSerializer,
     HistorialVerificacionSerializer,
     SubAtencionSerializer,
     TipoAtencionSerializer,
+    VerificarSerializer,
 )
 
 
@@ -75,27 +80,29 @@ ROLES_QUE_REGISTRAN = (
 ROLES_QUE_CONSULTAN = ROLES_QUE_REGISTRAN + (Rol.JEFE_DELEGACIONES, Rol.ALCALDESA)
 
 
-def tiene_ficha_activa(user):
-    return bool(user.funcionario_id) and user.funcionario.estado == "activo"
+tiene_ficha_activa = verificacion.tiene_ficha_activa
 
 
 class PuedeRegistrarActividades(BasePermission):
-    """Leer: cualquier rol con alcance. Escribir: solo roles que registran y con ficha activa."""
+    """Leer: cualquier rol con alcance. Escribir: solo roles que registran y con ficha activa.
+    Sin acceso global ni delegación asignada no se entra (403)."""
 
     message = "No tienes permiso para registrar actividades."
 
     def has_permission(self, request, view):
         user = request.user
         rol = rol_de_usuario(user)  # None si es anónimo
+        if rol is None or not verificacion.tiene_alcance(user):
+            return False
         if request.method in SAFE_METHODS:
             if getattr(view, "action", None) == "opciones":
                 return rol in ROLES_QUE_REGISTRAN and tiene_ficha_activa(user)
             return rol in ROLES_QUE_CONSULTAN
-        if request.method != "POST":
-            # PUT/PATCH: solo el autor edita (se valida en verificacion.validar_edicion, que
-            # responde 403 o 409); DELETE: el ViewSet responde 405.
-            return rol is not None
-        return rol in ROLES_QUE_REGISTRAN and tiene_ficha_activa(user)
+        if request.method == "POST":
+            return rol in ROLES_QUE_REGISTRAN and tiene_ficha_activa(user)
+        # PUT/PATCH: además del rol, solo el autor con ficha activa edita (validar_edicion
+        # responde 403 o 409); DELETE: el ViewSet responde 405.
+        return True
 
 
 class PuedeVerificar(BasePermission):
@@ -105,21 +112,45 @@ class PuedeVerificar(BasePermission):
     message = "Tu rol no puede verificar actividades."
 
     def has_permission(self, request, view):
-        return rol_de_usuario(request.user) in verificacion.ROLES_VERIFICADORES
+        user = request.user
+        return rol_de_usuario(user) in verificacion.ROLES_VERIFICADORES and (
+            verificacion.tiene_alcance(user)
+        )
 
 
 class PuedeConsultarEvidencias(BasePermission):
     message = "No tienes permiso para ver evidencias."
 
     def has_permission(self, request, view):
-        return rol_de_usuario(request.user) in ROLES_QUE_CONSULTAN
+        user = request.user
+        return rol_de_usuario(user) in ROLES_QUE_CONSULTAN and verificacion.tiene_alcance(user)
+
+
+class PuedeBuscarVecino(BasePermission):
+    """Autocompletado por RUT: solo roles que registran actividades, con alcance."""
+
+    message = "No tienes permiso para buscar vecinos."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return rol_de_usuario(user) in ROLES_QUE_REGISTRAN and verificacion.tiene_alcance(user)
 
 
 def filtrar_por_alcance(queryset, user, lookup):
-    """Admin y usuarios sin delegación (acceso global) ven todo; el resto, su delegación."""
-    if rol_de_usuario(user) == Rol.ADMINISTRADOR or user.delegacion_id is None:
+    """Admin, Jefe de delegaciones y Alcaldesa ven todo; el resto, su delegación; sin
+    delegación (y sin acceso global) no ve nada."""
+    if verificacion.acceso_global(user):
         return queryset
+    if user.delegacion_id is None:
+        return queryset.none()
     return queryset.filter(**{lookup: user.delegacion_id})
+
+
+def actividad_conflicto(exc):
+    """El bloqueo del modelo (actividad aprobada) lanza ValidationError de Django: nunca 500."""
+    if isinstance(exc, DjangoValidationError):
+        return verificacion.Conflicto(exc.messages[0])
+    return exc
 
 
 class ActividadFiltro(filters.FilterSet):
@@ -174,6 +205,9 @@ class ActividadViewSet(MantenedorViewSet):
             return queryset.filter(funcionario_id=user.funcionario_id)  # solo lo propio
         return queryset
 
+    def handle_exception(self, exc):
+        return super().handle_exception(actividad_conflicto(exc))
+
     def get_object(self):
         if self.action in ("retrieve", "historial"):
             return super().get_object()  # lectura: fuera de alcance = 404
@@ -188,9 +222,26 @@ class ActividadViewSet(MantenedorViewSet):
             actividad = Actividad.objects.get(pk=actividad.pk)
         return actividad
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        with transaction.atomic():
+            # Se bloquea la ficha del autor antes de contar: dos altas simultáneas no pueden
+            # pasar ambas el tope de 7 por día.
+            funcionario = Funcionario.objects.select_for_update().get(pk=user.funcionario_id)
+            try:
+                reglas.validar_fecha(serializer.validated_data["fecha"], funcionario)
+            except DjangoValidationError as e:
+                raise ValidationError(e.message_dict)
+            instancia = serializer.save()
+            auditoria.registrar(user, "crear", instancia, nuevo=auditoria.foto(instancia))
+
     def perform_update(self, serializer):
         user = self.request.user
         with transaction.atomic():
+            # Se relee con bloqueo y se revalida: una aprobación concurrente gana la carrera.
+            bloqueada = Actividad.objects.select_for_update().get(pk=serializer.instance.pk)
+            verificacion.validar_edicion(user, bloqueada)
+            serializer.instance.estado_verificacion = bloqueada.estado_verificacion
             anterior = auditoria.foto(serializer.instance)
             instancia = serializer.save()
             verificacion.reabrir_por_edicion(user, instancia)  # antecedentes -> pendiente
@@ -202,9 +253,13 @@ class ActividadViewSet(MantenedorViewSet):
     def verificar(self, request, pk=None):
         """Aprobar, rechazar o pedir antecedentes: {"accion"|"estado": ..., "observacion": ...}."""
         actividad = self.get_object()
-        accion = request.data.get("accion") or request.data.get("estado")
+        datos = VerificarSerializer(data=request.data)
+        datos.is_valid(raise_exception=True)
         actividad = verificacion.verificar(
-            request.user, actividad, accion, request.data.get("observacion", "")
+            request.user,
+            actividad,
+            datos.validated_data["accion"],
+            datos.validated_data["observacion"],
         )
         return Response(
             {
@@ -261,7 +316,9 @@ class ActividadViewSet(MantenedorViewSet):
 class BuscarVecinoView(APIView):
     """GET /api/vecinos/buscar/?rut= para autocompletar el formulario de actividades."""
 
-    permission_classes = [PuedeRegistrarActividades]
+    permission_classes = [PuedeBuscarVecino]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "buscar_vecino"
 
     def get(self, request):
         rut = normalizar_rut(request.query_params.get("rut", ""))
@@ -270,10 +327,15 @@ class BuscarVecinoView(APIView):
                 {"error": "RUT inválido.", "campo": "rut"}, status=status.HTTP_400_BAD_REQUEST
             )
         vecino = Vecino.objects.filter(rut=rut, estado=Vecino.ACTIVO).first()
-        delegacion_id = request.user.delegacion_id
-        if vecino and rol_de_usuario(request.user) != Rol.ADMINISTRADOR and delegacion_id:
-            if not vecino_pertenece_a_delegacion(vecino, delegacion_id):
-                vecino = None  # no se revela que existe en otra delegación
+        # Solo se muestran vecinos ya atendidos en la delegación del usuario (los "libres", sin
+        # actividades, no: serían datos personales de cualquiera). El acceso global ve todo.
+        # TODO(Pamela): reemplazar por vecino.delegacion cuando exista ese campo.
+        if vecino and not verificacion.acceso_global(request.user):
+            atendido = vecino.actividades.filter(
+                funcionario__delegacion_id=request.user.delegacion_id
+            )
+            if not atendido.exists():
+                vecino = None  # tampoco se revela que existe en otra delegación
         if vecino is None:
             return Response(
                 {"error": "No hay un vecino con ese RUT en tu delegación.", "campo": "rut"},
@@ -315,6 +377,9 @@ class EvidenciaViewSet(
             return queryset.filter(actividad__funcionario_id=user.funcionario_id)
         return queryset
 
+    def handle_exception(self, exc):
+        return super().handle_exception(actividad_conflicto(exc))
+
     def get_object(self):
         if self.action == "retrieve":
             return super().get_object()
@@ -334,17 +399,25 @@ class EvidenciaViewSet(
         actividad = serializer.validated_data["actividad"]
         if not verificacion.puede_gestionar_evidencias(user, actividad):
             raise PermissionDenied("Solo el autor o quien verifica puede subir evidencias.")
-        verificacion.validar_modificable(actividad)
         with transaction.atomic():
-            evidencia = serializer.save()
+            # Se relee con bloqueo: una aprobación concurrente no deja pasar la subida.
+            bloqueada = Actividad.objects.select_for_update().get(pk=actividad.pk)
+            verificacion.validar_modificable(bloqueada)
+            maximo = settings.EVIDENCIAS_MAX_POR_ACTIVIDAD
+            if bloqueada.evidencias.count() >= maximo:
+                raise ValidationError(
+                    {"actividad": f"La actividad ya tiene el máximo de {maximo} evidencias."}
+                )
+            evidencia = serializer.save(actividad=bloqueada)
             nuevo = auditoria.foto(evidencia)
             nuevo.pop("archivo", None)
             auditoria.registrar(user, "crear", evidencia, nuevo=nuevo)
 
     def destroy(self, request, *args, **kwargs):
         evidencia = self.get_object()
-        verificacion.validar_modificable(evidencia.actividad)
         with transaction.atomic():
+            bloqueada = Actividad.objects.select_for_update().get(pk=evidencia.actividad_id)
+            verificacion.validar_modificable(bloqueada)
             anterior = auditoria.foto(evidencia)
             anterior.pop("archivo", None)
             auditoria.registrar(request.user, "eliminar", evidencia, anterior=anterior)
@@ -356,14 +429,16 @@ class EvidenciaViewSet(
         """Descarga con control de delegación. Con EVIDENCIAS_X_ACCEL_PREFIX (nginx interno)
         el envío del archivo se delega en nginx con X-Accel-Redirect."""
         evidencia = self.get_object()
-        nombre = evidencia.nombre_original or evidencia.codigo_verificador
+        # Nombre de descarga fijado por el servidor (código verificador + extensión real):
+        # el nombre original que escribió el usuario nunca llega a un encabezado.
+        codigo = evidencia.codigo_verificador
+        nombre = codigo + os.path.splitext(evidencia.archivo.name)[1].lower()
         prefijo = settings.EVIDENCIAS_X_ACCEL_PREFIX
         if prefijo:
             respuesta = HttpResponse(content_type=evidencia.tipo_contenido)
             destino = prefijo.rstrip("/") + "/" + evidencia.archivo.name
             respuesta["X-Accel-Redirect"] = destino
-            codigo = evidencia.codigo_verificador
-            respuesta["Content-Disposition"] = f'attachment; filename="{codigo}"'
+            respuesta["Content-Disposition"] = f'attachment; filename="{nombre}"'
         else:
             respuesta = FileResponse(
                 evidencia.archivo.open("rb"),

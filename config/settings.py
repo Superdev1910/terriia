@@ -8,6 +8,7 @@ Nunca subir el .env al repositorio.
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,8 +23,16 @@ def env_list(nombre, por_defecto=""):
     return [v.strip() for v in os.getenv(nombre, por_defecto).split(",") if v.strip()]
 
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "solo-para-desarrollo-cambiar")
-DEBUG = env_bool("DJANGO_DEBUG", True)
+# Seguro por defecto: sin DJANGO_DEBUG=True explícito (solo desarrollo) el sitio corre con
+# DEBUG=False, y entonces DJANGO_SECRET_KEY es obligatoria.
+DEBUG = env_bool("DJANGO_DEBUG", False)
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured(
+            "Falta DJANGO_SECRET_KEY. Defínela en el .env (o usa DJANGO_DEBUG=True solo en desarrollo)."
+        )
+    SECRET_KEY = "solo-para-desarrollo-cambiar"
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
@@ -142,6 +151,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {  # freno a la fuerza bruta (por IP)
         "login": "10/min",
         "recuperar": "12/min",
+        "buscar_vecino": "30/min",  # autocompletado por RUT: frena el barrido de RUT
     },
 }
 
@@ -169,12 +179,24 @@ SEMANA_CIERRE_DIAS_GRACIA = int(os.getenv("SEMANA_CIERRE_DIAS_GRACIA", "1"))
 
 # Evidencias: /media/ NO se sirve desde Django (config/urls.py). Los archivos salen por
 # /api/evidencias/<id>/archivo/ con control de delegación. Si se define este prefijo (ej.
-# /protegido-media/, un `location ... internal;` de nginx hacia MEDIA_ROOT), Django responde con
+# /media, un `location /media/ { internal; ... }` de nginx hacia MEDIA_ROOT), Django responde con
 # X-Accel-Redirect y nginx entrega el archivo.
 EVIDENCIAS_X_ACCEL_PREFIX = os.getenv("EVIDENCIAS_X_ACCEL_PREFIX", "")
+# Máximo de evidencias por actividad.
+EVIDENCIAS_MAX_POR_ACTIVIDAD = int(os.getenv("EVIDENCIAS_MAX_POR_ACTIVIDAD", "10"))
 
-# Detrás de Nginx en producción
+# Producción
 if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_HTTPONLY = True
     X_FRAME_OPTIONS = "DENY"
+
+# HTTPS: activar con DJANGO_HTTPS=True SOLO cuando nginx ya sirva el sitio con certificado
+# (hoy el servidor atiende por HTTP; ver deploy/nginx-terriia.conf). Con HTTP y esta variable el
+# sitio quedaría en un bucle de redirección y sin sesión.
+if env_bool("DJANGO_HTTPS", False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False  # activar solo si todos los subdominios usan https

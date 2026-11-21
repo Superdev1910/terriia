@@ -30,6 +30,12 @@ def hora(dia, h=10, mes=11):
     return timezone.make_aware(datetime(2026, mes, dia, h, 0))
 
 
+def formato_rut(rut):
+    """'20000001-9' -> '20.000.001-9'."""
+    cuerpo, dv = rut.split("-")
+    return f"{int(cuerpo):,}".replace(",", ".") + "-" + dv
+
+
 def con_ahora(momento=AHORA):
     return mock.patch("django.utils.timezone.now", return_value=momento)
 
@@ -153,8 +159,9 @@ class ActividadTests(ActividadBase):
         self.assertEqual(self.registrar(usuario=self.user_b, vecino=None).status_code, 201)
 
     def test_cp_act_05_semana_cerrada(self):
-        """CP-ACT-05 | Req: semana lunes-domingo cerrada | Esperado: el miércoles ya no se
-        puede registrar en la semana anterior (cerró el lunes por 1 día de gracia): 400."""
+        """CP-ACT-05 | Req: semana lunes-domingo cerrada | Esperado: la semana del 9 al 15 de
+        noviembre cierra al terminar el lunes 16 (domingo + 1 día de gracia); el miércoles 18
+        ya no se puede registrar en ella: 400."""
         r = self.registrar(fecha=hora(13).isoformat())  # viernes de la semana anterior
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("cerrada", r.data["error"])
@@ -195,6 +202,7 @@ class ActividadTests(ActividadBase):
         self.assertFalse(r.data["pondera"])
         self.assertIn("teléfono", r.data["motivo_no_pondera"])
         r = self.registrar(vecino=None, contacto="")
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
         self.assertFalse(r.data["pondera"])
         self.assertIn("nombre", r.data["motivo_no_pondera"])
 
@@ -271,22 +279,19 @@ class ActividadTests(ActividadBase):
 
     def test_cp_act_16_autocompletado_rut(self):
         """CP-ACT-16 | Req: autocompletar por RUT | Esperado: GET /api/vecinos/buscar/?rut=
-        devuelve los datos del vecino (acepta puntos); 404 si no existe o es de otra
-        delegación; 400 con RUT inválido."""
+        devuelve los datos de un vecino ya atendido en la delegación (acepta el RUT con puntos,
+        ej. 20.000.001-9); 404 si no existe o es de otra delegación; 400 con RUT inválido."""
+        self.registrar(usuario=self.user_a)  # el vecino queda atendido en la delegación A
         self.client.force_authenticate(self.user_a)
-        con_puntos = f"{self.vecino.rut[:-5]}.{self.vecino.rut[-5:-2]}.{self.vecino.rut[-2:]}"
-        r = self.client.get("/api/vecinos/buscar/", {"rut": self.vecino.rut})
+        r = self.client.get("/api/vecinos/buscar/", {"rut": formato_rut(self.vecino.rut)})
         self.assertEqual(r.status_code, 200, r.data)
         self.assertEqual(r.data["id_vecino"], self.vecino.pk)
         self.assertEqual(r.data["telefono"], "+56911112222")
-        r = self.client.get("/api/vecinos/buscar/", {"rut": con_puntos})
-        self.assertEqual(r.status_code, 200)
         self.assertEqual(self.client.get("/api/vecinos/buscar/", {"rut": "1-1"}).status_code, 400)
         self.assertEqual(
             self.client.get("/api/vecinos/buscar/", {"rut": self.nuevo_rut()}).status_code, 404
         )
-        self.registrar(usuario=self.user_b)  # ahora el vecino pertenece a la delegación B
-        self.client.force_authenticate(self.user_a)
+        self.client.force_authenticate(self.user_b)  # otra delegación
         r = self.client.get("/api/vecinos/buscar/", {"rut": self.vecino.rut})
         self.assertEqual(r.status_code, 404)
 

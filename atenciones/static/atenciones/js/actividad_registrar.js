@@ -150,5 +150,6 @@
       setTimeout(() => { $('fecha').value = fechaLocalActual(); pintarTipos(); }, 0);
     });
   }
-  iniciar();
+  // Sin ficha activa el servidor ya deshabilitó el formulario: no se piden catálogos (darían 403).
+  if (!$('formActividad').dataset.sinFicha) iniciar();
 })();
