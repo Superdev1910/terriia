@@ -17,7 +17,9 @@ Las evidencias son archivos y la base solo guarda su ruta: **base y `media/` deb
 
 - **Frecuencia:** una vez al día, de madrugada (hora de baja carga).
 - **Retención:** 7 días. El mismo script borra lo más antiguo (`RETENCION_DIAS=7`).
-- **Ubicación:** `/var/www/terriia/respaldos/` (cambiable con `RESPALDO_DIR`). Idealmente copiar también a otro lugar
+- **Ubicación:** `/var/backups/terriia/`, fuera del proyecto (cambiable con `RESPALDO_DIR`). Crearla una vez:
+  `sudo mkdir -p /var/backups/terriia && sudo chown ec2-user: /var/backups/terriia`. `.gitignore` también excluye
+  `/var/backups/terriia/`, `*.sql.gz` y `media-*.tar.gz` por si alguien respalda dentro del repo. Idealmente copiar también a otro lugar
   (otro servidor o un bucket) para no perderlo si falla el disco; eso queda por definir con el cliente.
 
 ## Credenciales
@@ -37,19 +39,19 @@ password=<la clave real, solo en el servidor>
 Ejemplo: todos los días a las 02:30 (`crontab -e` con el usuario del proyecto, por ejemplo `ec2-user`):
 
 ```cron
-30 2 * * * bash /var/www/terriia/deploy/respaldo.sh >> /var/www/terriia/respaldos/respaldo.log 2>&1
+30 2 * * * mkdir -p /var/backups/terriia && bash /var/www/terriia/deploy/respaldo.sh >> /var/backups/terriia/respaldo.log 2>&1
 ```
 
 Ejecución manual: `bash deploy/respaldo.sh`.
 
 ## Cómo restaurar
 
-1. Elige la fecha en `respaldos/` (por ejemplo `bd-terriia-2026-11-20_023000.sql.gz` y `media-2026-11-20_023000.tar.gz`).
+1. Elige la fecha en `/var/backups/terriia/` (por ejemplo `bd-terriia-2026-11-20_023000.sql.gz` y `media-2026-11-20_023000.tar.gz`).
 2. Detén la aplicación: `sudo systemctl stop gunicorn`.
 3. Restaura con confirmación (pide escribir `SI`):
 
    ```bash
-   bash deploy/restaurar.sh respaldos/bd-terriia-2026-11-20_023000.sql.gz respaldos/media-2026-11-20_023000.tar.gz
+   bash deploy/restaurar.sh /var/backups/terriia/bd-terriia-2026-11-20_023000.sql.gz /var/backups/terriia/media-2026-11-20_023000.tar.gz
    ```
 4. Inicia: `sudo systemctl start gunicorn` y revisa que el sitio abra, que se pueda ingresar y que una evidencia se descargue.
 
@@ -60,10 +62,16 @@ La restauración **reemplaza** los datos actuales. Si solo falló la base, resta
 Una copia que nunca se restauró no es un respaldo confiable. Prueba sin tocar producción, en otra base:
 
 ```bash
-DB_NAME_DESTINO=terriia_prueba bash deploy/restaurar.sh respaldos/bd-terriia-<fecha>.sql.gz
+DB_NAME_DESTINO=terriia_prueba bash deploy/restaurar.sh /var/backups/terriia/bd-terriia-<fecha>.sql.gz
 mysql -e "SELECT COUNT(*) FROM terriia_prueba.actividad; SELECT COUNT(*) FROM terriia_prueba.evidencia;"
 mysql -e "DROP DATABASE terriia_prueba;"
 ```
 
-Compara los conteos con producción y comprueba que `tar -tzf respaldos/media-<fecha>.tar.gz | head` lista archivos.
+Compara los conteos con producción y comprueba que `tar -tzf /var/backups/terriia/media-<fecha>.tar.gz | head` lista archivos.
 Anota fecha y resultado de cada prueba (quién la hizo y si funcionó).
+
+### Registro de pruebas de restauración
+
+| Fecha | Entorno | Respaldo usado | Resultado | Responsable |
+|---|---|---|---|---|
+| (por completar) | | | | |

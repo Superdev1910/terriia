@@ -4,12 +4,13 @@
 # Credenciales: se leen del .env del proyecto (DB_*) o, si DB_PASSWORD está vacío, de ~/.my.cnf.
 # Ninguna clave se escribe en este script ni queda en la lista de procesos.
 # Variables opcionales: PROYECTO_DIR (por defecto /var/www/terriia), RESPALDO_DIR (por defecto
-# $PROYECTO_DIR/respaldos), RETENCION_DIAS (por defecto 7).
+# /var/backups/terriia, FUERA del proyecto), RETENCION_DIAS (por defecto 7).
+# Crear la carpeta una vez: sudo mkdir -p /var/backups/terriia && sudo chown ec2-user: /var/backups/terriia
 set -euo pipefail
 umask 077
 
 PROYECTO_DIR="${PROYECTO_DIR:-/var/www/terriia}"
-RESPALDO_DIR="${RESPALDO_DIR:-$PROYECTO_DIR/respaldos}"
+RESPALDO_DIR="${RESPALDO_DIR:-/var/backups/terriia}"
 RETENCION_DIAS="${RETENCION_DIAS:-7}"
 ENV_FILE="$PROYECTO_DIR/.env"
 

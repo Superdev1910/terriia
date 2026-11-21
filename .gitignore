@@ -11,6 +11,11 @@ db.sqlite3
 /static/
 /media/
 
+# Respaldos (contienen datos personales): nunca al repositorio
+respaldos/
+*.sql.gz
+media-*.tar.gz
+
 # Editores / SO
 .vscode/
 .idea/

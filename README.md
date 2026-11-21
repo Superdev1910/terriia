@@ -42,6 +42,7 @@ python -m venv venv
 venv\Scripts\activate            # Windows  (Linux/Mac: source venv/bin/activate)
 pip install -r requirements.txt
 copy .env.example .env           # Windows  (Linux/Mac: cp .env.example .env)
+# En el .env agrega DJANGO_DEBUG=True (solo desarrollo; por defecto el sitio corre con DEBUG=False)
 python manage.py migrate
 python manage.py createsuperuser # pide email, RUT y clave
 python manage.py runserver
@@ -53,7 +54,9 @@ python manage.py runserver
 - Login de la API: `POST /api/auth/login/` con `{"email": "...", "password": "..."}`
 - Correo real para «¿Olvidaste tu contraseña?» (opcional): sigue [docs/LEEME-correo.md](docs/LEEME-correo.md).
   Sin eso, el código sale en la consola del servidor.
-- Las variables del `.env` están explicadas, por secciones, en [`.env.example`](.env.example).
+- Las variables del `.env` están explicadas, por secciones, en [`.env.example`](.env.example). Por seguridad `DJANGO_DEBUG` vale
+  `False` si no se define, y entonces `DJANGO_SECRET_KEY` es obligatoria (sin ella Django no arranca). Para correr las pruebas
+  fuera de tu `.env` define al menos `DJANGO_SECRET_KEY` (GitHub Actions ya lo hace).
 
 ## Cómo correr las pruebas
 
@@ -82,7 +85,7 @@ servidor; ocultar un ítem del menú no es una medida de seguridad.
 | Territorio | `/api/vecinos/`, `/api/territorios/`, `/api/juntas-vecinos/` | `/territorio/vecinos/`, `territorios/`, `juntas-vecinos/` | Administrador; Delegado (territorios y juntas de su delegación) |
 | Metas | `/api/periodos/`, `/api/items/`, `/api/metas-delegacion/`, `/api/metas/`, `/api/recalibraciones-meta/` | `/metas/periodos/`, `items/`, `metas-delegacion/`, `metas-individuales/` | Administrador; Delegado (metas de su delegación) |
 | Catálogos de atención | `/api/tipos-atencion/`, `/api/sub-atenciones/` | `/atenciones/tipos-atencion/`, `/atenciones/sub-atenciones/` | Administrador |
-| Actividades | `/api/actividades/` (GET, POST, PUT/PATCH solo el autor; sin DELETE), `/api/actividades/opciones/`, `/api/vecinos/buscar/?rut=` | `/atenciones/registrar/` (Registrar actividad), `/atenciones/mis-registros/` (Mis registros) | Funcionario, Encargado de área, Delegado, Administrador |
+| Actividades | `/api/actividades/` (GET, POST, PUT/PATCH solo el autor; sin DELETE), `/api/actividades/opciones/`, `/api/vecinos/buscar/?rut=` | `/atenciones/registrar/` (Registrar actividad), `/atenciones/mis-registros/` (Mis registros) | Registran: Funcionario, Encargado de área, Delegado, Administrador. Consultan por API (con su alcance): Jefe de delegaciones y Alcaldesa |
 | Verificación | `POST /api/actividades/<id>/verificar/`, `GET /api/actividades/<id>/historial/` | `/atenciones/verificacion/` | Delegado, Encargado de área (su delegación); Jefe de delegaciones y Administrador (todas) |
 | Evidencias | `/api/evidencias/` (subir, listar, borrar), `GET /api/evidencias/<id>/archivo/` | Dentro de «Mis registros» y de la ficha de «Verificación» | Autor y verificadores con alcance |
 
@@ -110,9 +113,9 @@ Los 6 roles del sistema están en `core/models.py` y no se pueden renombrar ni d
 | Delegado territorial | Su delegación | Territorios, juntas, funcionarios y metas de su delegación; registrar actividades (si tiene ficha de funcionario); ver y verificar las actividades de su delegación. Catálogos globales en solo lectura. |
 | Encargado de área | Su delegación | Registrar actividades (con ficha de funcionario), ver y verificar las de su delegación. |
 | Funcionario | Lo propio | Ver su ficha y metas en `/personas/mi-perfil/`; registrar actividades y gestiones sociales, editarlas mientras estén pendientes o con antecedentes solicitados, subir evidencias y ver «Mis registros». |
-| Alcaldesa | Global si su delegación está vacía | Consulta de actividades por API; hoy no tiene pantallas propias en el menú. |
+| Alcaldesa | Global | Consulta de actividades por API; hoy no tiene pantallas propias en el menú. |
 
-Un usuario con `delegacion` vacía tiene acceso global a las consultas. La creación de cuentas y la asignación de roles son
+El acceso global (todas las delegaciones) lo dan solo los roles Administrador, Jefe de delegaciones y Alcaldesa. Un Delegado, Encargado o Funcionario sin delegación asignada no ve nada de actividades (403). La creación de cuentas y la asignación de roles son
 exclusivas del Administrador.
 
 ## Estado de cada módulo
@@ -128,7 +131,7 @@ Según el código actual del repositorio.
 | Metas (`metas`) | Parcial | Períodos, ítems, metas por delegación e individuales y recalibraciones con mantenedores. No hay dashboard, semáforo ni cálculo del 120 % (`TODO(Valentina)`). |
 | Catálogos de atención (`atenciones`) | Hecho | Tipos de atención y sub atenciones (semilla de ejemplo del área Social). |
 | Actividades y gestión social (`atenciones`) | Hecho | Ingreso, reglas de negocio, edición del autor, «Registrar actividad» y «Mis registros» con Excel. |
-| Verificación y evidencias (`atenciones`) | Hecho | Transiciones, historial, bandeja y ficha, subida y descarga protegida. Falta una prueba manual de las pantallas en navegador y configurar nginx en el servidor. |
+| Verificación y evidencias (`atenciones`) | Hecho (pendiente prueba manual en navegador) | Transiciones, historial, bandeja y ficha, subida y descarga protegida. Falta la prueba manual de las pantallas en navegador y configurar nginx en el servidor. |
 | Tubo y búsqueda | No iniciado | `ingreso_a_tubo` solo se guarda como dato (`TODO(Brian)`); `id_hito` es un entero sin modelo Hito. |
 | Reportes y protocolo | No iniciado | `TODO(Pamela)`. |
 | Felicitaciones y ausencias | No iniciado | `TODO(Fernando)`. |
@@ -155,7 +158,7 @@ Cada mantenedor ocupa los mismos archivos de su app: `models.py`, `serializers.p
 
 | Tema | Cómo se hace |
 |---|---|
-| Modelo | `db_table = "<tabla>"` y los nombres del SQL v2.3. PK explícita: `id_delegacion = models.AutoField(primary_key=True)` |
+| Modelo | `db_table = "<tabla>"` y los nombres del SQL v2.4 y sus deltas v2.5 y v2.6. PK explícita: `id_delegacion = models.AutoField(primary_key=True)` |
 | Llaves foráneas | `delegacion = models.ForeignKey(Delegacion, on_delete=models.PROTECT, db_column="id_delegacion")` |
 | Vista | Hereda de `core.views.MantenedorViewSet` (trae permisos, auditoría y desactivar) |
 | Permisos | Por defecto `IsAdministrador`. Los mantenedores operativos pueden declarar alcance por delegación en el backend; nunca basta ocultar opciones en el menú. |
@@ -215,7 +218,10 @@ EC2 Amazon Linux 2023 · Nginx :80 → Gunicorn 127.0.0.1:8000 → MariaDB local
    Sirve `/static/` desde `STATIC_ROOT` y deja `/media/` como `internal` (solo accesible vía `X-Accel-Redirect` desde Django:
    las evidencias nunca tienen URL pública).
 6. Actualizar con lo último de `main`: `bash deploy/actualizar.sh`.
-7. Respaldos diarios con cron: ver [docs/respaldo-recuperacion.md](docs/respaldo-recuperacion.md).
+7. Respaldos diarios con cron (en `/var/backups/terriia/`, fuera del proyecto): ver [docs/respaldo-recuperacion.md](docs/respaldo-recuperacion.md).
+8. **HTTPS: hoy el servidor atiende solo por HTTP y falta el certificado.** Cuando exista, activar el bloque 443 de nginx (hay un
+   ejemplo comentado en `deploy/nginx-terriia.conf`) y poner `DJANGO_HTTPS=True` en el `.env`: activa cookies de sesión y CSRF
+   `Secure`, la redirección a https y HSTS. No activarlo antes (el sitio dejaría de funcionar).
 
 ### PythonAnywhere (pruebas / demostración)
 
