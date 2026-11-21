@@ -75,7 +75,7 @@
         <button type="button" class="btn btn-borde" data-accion="rechazar"><i class="bi bi-x-lg"></i> Rechazar</button></div>`
       : '<p class="aviso-cascada">Esta actividad ya no admite cambios de verificación.</p>';
     const ficha = await Swal.fire({
-      title: esc(r.codigo), width: 640, showConfirmButton: false, showCloseButton: true,
+      titleText: r.codigo, width: 640, showConfirmButton: false, showCloseButton: true,
       html: `<dl class="ficha">
           <dt>Estado</dt><dd>${badge(r.estado_verificacion)}</dd>
           <dt>Funcionario</dt><dd>${esc(r.funcionario_nombre)}</dd>

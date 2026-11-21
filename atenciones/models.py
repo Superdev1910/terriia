@@ -341,6 +341,7 @@ class HistorialVerificacion(models.Model):
     class Meta:
         db_table = "historial_verificacion"
         ordering = ["fecha", "id_historial"]
+        indexes = [models.Index(fields=["actividad", "fecha"], name="ix_hist_verif_actividad")]
         verbose_name_plural = "historial de verificación"
 
     def __str__(self):
@@ -387,6 +388,8 @@ class Evidencia(models.Model):
     )
     fecha = models.DateTimeField(auto_now_add=True)
     tiene_imagen = models.BooleanField(default=False)
+    # Reservado: hoy no tiene flujo (siempre "pendiente"). Quedó del SQL v2.4 para una revisión
+    # por evidencia que el cliente aún no define; no se usa ni se borra (ver LEEME-modelo-datos.md).
     estado_revision = models.CharField(max_length=9, choices=ESTADOS_REVISION, default=PENDIENTE)
 
     class Meta:

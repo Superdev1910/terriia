@@ -8,27 +8,16 @@
   const TAM_PAGINA = 20;
   const estado = { pagina: 1 };
   const TIPOS = { actividad: 'Actividad', gestion_social: 'Gestión social' };
-  const VERIF = { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada', antecedentes: 'Requiere antecedentes' };
-  const { api: apiComun, badge, listaEvidencias } = window.TerriIA;
+  // Utilidades compartidas (actividad_comun.js): una sola copia para todas las pantallas.
+  const { esc, api, fechaTexto, badge, listaEvidencias, VERIF } = window.TerriIA;
+  const alerta = (icon, title, texto) => window.TerriIA.alerta(icon, title, esc(texto));
   let filas = [];
 
-  function esc(v) {
-    return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  }
-  async function api(url) {
-    const resp = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
-    let datos = null;
-    try { datos = await resp.json(); } catch (e) { datos = null; }
-    if (!resp.ok) throw new Error((datos && datos.error) || 'No se pudo completar la operación.');
-    return datos;
-  }
   async function traerTodo(url) {
     const registros = []; let sig = url;
     while (sig) { const d = await api(sig); registros.push(...d.results); sig = d.next; }
     return registros;
   }
-  const fechaTexto = (iso) => new Date(iso).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
-  const alerta = (icon, title, text) => Swal.fire({ icon, title, text, confirmButtonText: 'Entendido', confirmButtonColor: '#ad0000' });
 
   function parametros(extra = {}) {
     const p = new URLSearchParams({ mis_registros: 'true', page: estado.pagina, page_size: TAM_PAGINA, ...extra });
@@ -98,7 +87,7 @@
       const encabezados = ['Código', 'Fecha', 'Tipo', 'Ítem', 'RUT', 'Vecino', 'Pondera', 'Motivo no pondera', 'Verificación'];
       const datos = registros.map((r) => [
         r.codigo, fechaTexto(r.fecha), TIPOS[r.tipo_registro], r.item_nombre, r.vecino_rut || '',
-        r.vecino_nombre || r.contacto, r.pondera ? 'Sí' : 'No', r.motivo_no_pondera, VERIF[r.estado_verificacion],
+        r.vecino_nombre || r.contacto, r.pondera ? 'Sí' : 'No', r.motivo_no_pondera, VERIF[r.estado_verificacion][0],
       ]);
       const hoja = XLSX.utils.aoa_to_sheet([encabezados, ...datos]);
       hoja['!cols'] = encabezados.map((e, i) => ({ wch: Math.min(Math.max(e.length, ...datos.map((f) => String(f[i]).length)) + 2, 40) }));
@@ -113,7 +102,7 @@
   async function editar(id) {
     const r = filas.find((x) => x.id_actividad === id);
     const res = await Swal.fire({
-      title: `Editar ${esc(r.codigo)}`, confirmButtonText: 'Guardar', showCancelButton: true, cancelButtonText: 'Cancelar', confirmButtonColor: '#ad0000',
+      titleText: `Editar ${r.codigo}`, confirmButtonText: 'Guardar', showCancelButton: true, cancelButtonText: 'Cancelar', confirmButtonColor: '#ad0000',
       html: `<div class="form-swal"><label>Descripción<textarea id="eDescripcion" class="swal2-textarea">${esc(r.descripcion)}</textarea></label>
         <label>Acción realizada<input id="eAccion" class="swal2-input" value="${esc(r.accion)}"></label>
         <label>Nombre de la persona atendida<input id="eContacto" class="swal2-input" value="${esc(r.contacto)}"></label>
@@ -125,7 +114,7 @@
     });
     if (!res.isConfirmed) return;
     try {
-      await apiComun(`${URL}${id}/`, { method: 'PATCH', body: JSON.stringify(res.value) });
+      await api(`${URL}${id}/`, { method: 'PATCH', body: JSON.stringify(res.value) });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Registro actualizado', showConfirmButton: false, timer: 2600 });
     } catch (e) { alerta('error', 'No se pudo editar', e.message); }
     listar();
@@ -136,7 +125,7 @@
     const r = filas.find((x) => x.id_actividad === id);
     const editable = r.estado_verificacion !== 'aprobada' && r.puede_editar;
     async function cargar() {
-      const d = await apiComun(`/api/evidencias/?actividad=${id}&page_size=100`);
+      const d = await api(`/api/evidencias/?actividad=${id}&page_size=100`);
       return d.results.map((e) => ({ ...e, puedeQuitar: editable }));
     }
     try {
@@ -144,19 +133,19 @@
       const subir = editable ? `<label class="subir">Agregar evidencia (JPG, PNG o PDF, máx. 5 MB)
         <input type="file" id="archivoEvidencia" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"></label>` : '<p class="subtitulo">Esta actividad no admite cambios de evidencias.</p>';
       await Swal.fire({
-        title: `Evidencias de ${esc(r.codigo)}`, showConfirmButton: false, showCloseButton: true,
+        titleText: `Evidencias de ${r.codigo}`, showConfirmButton: false, showCloseButton: true,
         html: `<div id="listaEv">${listaEvidencias(lista)}</div>${subir}`,
         didOpen: (el) => {
           const entrada = el.querySelector('#archivoEvidencia');
           if (entrada) entrada.addEventListener('change', async () => {
             if (!entrada.files.length) return;
             const datos = new FormData(); datos.append('actividad', id); datos.append('archivo', entrada.files[0]);
-            try { await apiComun('/api/evidencias/', { method: 'POST', body: datos }); Swal.close(); listar(); evidencias(id); }
+            try { await api('/api/evidencias/', { method: 'POST', body: datos }); Swal.close(); listar(); evidencias(id); }
             catch (e) { entrada.value = ''; alerta('error', 'No se pudo subir', e.message).then(() => evidencias(id)); }
           });
           el.addEventListener('click', async (ev) => {
             const b = ev.target.closest('[data-quitar]'); if (!b) return;
-            try { await apiComun(`/api/evidencias/${b.dataset.quitar}/`, { method: 'DELETE' }); Swal.close(); listar(); evidencias(id); }
+            try { await api(`/api/evidencias/${b.dataset.quitar}/`, { method: 'DELETE' }); Swal.close(); listar(); evidencias(id); }
             catch (e) { alerta('error', 'No se pudo quitar', e.message); }
           });
         },

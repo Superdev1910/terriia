@@ -129,7 +129,7 @@ class VerificacionTests(VerificacionBase):
         self.actividad.refresh_from_db()
         self.assertEqual(self.actividad.descripcion, "")
 
-    def test_cp_ver_06_autoverificacion_rechazada(self):
+    def test_cp_ver_06_nadie_verifica_lo_propio(self):
         """CP-VER-06 | Req: nadie verifica lo propio | Esperado: un delegado (y un
         administrador con ficha) que verifica una actividad propia recibe 403."""
         propia = self.crear_en_bd(self.delegado_a.funcionario, hora(18, 9))
@@ -228,8 +228,8 @@ class VerificacionTests(VerificacionBase):
         ruta = Evidencia.objects.get().archivo.name
         self.assertEqual(self.client.get(f"/media/{ruta}").status_code, 404)
 
-    def test_cp_ver_13b_x_accel_redirect(self):
-        """Apoyo CP-VER-13: con EVIDENCIAS_X_ACCEL_PREFIX la descarga delega en nginx."""
+    def test_apoyo_x_accel_redirect(self):
+        """Prueba de apoyo (sin código CP): con EVIDENCIAS_X_ACCEL_PREFIX la descarga delega en nginx."""
         evidencia = self.subir(self.user_a).data
         ruta = Evidencia.objects.get().archivo.name
         self.client.force_authenticate(self.user_a)
