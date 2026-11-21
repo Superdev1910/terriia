@@ -397,9 +397,11 @@ class Evidencia(models.Model):
         return self.codigo_verificador
 
     def _verificar_actividad_no_aprobada(self):
-        actual = Actividad.objects.filter(pk=self.actividad_id).values_list(
-            "estado_verificacion", flat=True
-        ).first()
+        actual = (
+            Actividad.objects.filter(pk=self.actividad_id)
+            .values_list("estado_verificacion", flat=True)
+            .first()
+        )
         if actual == Actividad.VERIF_APROBADA:
             raise ValidationError("La actividad está aprobada: no se modifican sus evidencias.")
 
