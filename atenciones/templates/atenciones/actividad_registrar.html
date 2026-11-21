@@ -1,0 +1,110 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Registrar actividad{% endblock %}
+{% block contenido %}
+<link rel="stylesheet" href="{% static 'atenciones/css/actividad.css' %}?v=20261121-1">
+<div class="encabezado-pagina">
+  <div>
+    <h1>Registrar actividad</h1>
+    <p class="subtitulo">Ingrese una actividad o gestión social. El código se genera al guardar.</p>
+  </div>
+  <div class="acciones-pagina">
+    <a class="btn btn-borde" href="{% url 'atenciones_mis_registros' %}"><i class="bi bi-journal-text"></i> Mis registros</a>
+  </div>
+</div>
+
+<section class="panel panel-form" aria-label="Formulario de actividad">
+  {% if sin_ficha %}
+  <p class="aviso-cascada" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+    Tu usuario no tiene una ficha de funcionario activa, por lo que no puedes registrar actividades.
+    Pide al administrador que la asocie o la active.</p>
+  {% endif %}
+  <form id="formActividad" novalidate {% if sin_ficha %}data-sin-ficha="1"{% endif %}>
+   <fieldset class="sin-borde" {% if sin_ficha %}disabled{% endif %}>
+    <div class="form-grilla">
+      <fieldset class="campo ancho">
+        <legend>Tipo de registro <span class="oblig">*</span></legend>
+        <label class="opcion"><input type="radio" name="tipo_registro" value="actividad" checked> Actividad</label>
+        <label class="opcion"><input type="radio" name="tipo_registro" value="gestion_social"> Gestión social</label>
+      </fieldset>
+
+      <div class="campo">
+        <label for="fecha">Fecha y hora <span class="oblig">*</span></label>
+        <input type="datetime-local" id="fecha" required>
+        <small class="ayuda">No puede ser futura. Máximo 7 registros por día.</small>
+        <span class="error" data-error="fecha"></span>
+      </div>
+      <div class="campo">
+        <label for="item">Ítem <span class="oblig">*</span></label>
+        <select id="item" required><option value="">Seleccione…</option></select>
+        <span class="error" data-error="item"></span>
+      </div>
+
+      <div class="campo">
+        <label for="rut">RUT del vecino</label>
+        <div class="grupo-rut">
+          <input type="text" id="rut" inputmode="text" autocomplete="off" placeholder="12.345.678-5" maxlength="12">
+          <button type="button" class="btn btn-borde" id="btnBuscarRut"><i class="bi bi-search"></i> Buscar</button>
+        </div>
+        <small class="ayuda" id="ayudaRut">Al salir del campo se completan los datos del vecino.</small>
+        <span class="error" data-error="vecino"></span>
+      </div>
+      <div class="campo">
+        <label for="contacto">Nombre de la persona atendida</label>
+        <input type="text" id="contacto" maxlength="150">
+        <span class="error" data-error="contacto"></span>
+      </div>
+      <div class="campo">
+        <label for="telefono">Teléfono</label>
+        <input type="tel" id="telefono" maxlength="20">
+        <small class="ayuda">Sin nombre y teléfono la actividad se registra, pero no pondera.</small>
+        <span class="error" data-error="telefono"></span>
+      </div>
+      <div class="campo">
+        <label for="territorio">Territorio</label>
+        <select id="territorio"><option value="">Sin territorio</option></select>
+        <span class="error" data-error="territorio"></span>
+      </div>
+
+      <div class="campo">
+        <label for="area">Área</label>
+        <select id="area"><option value="">Sin área</option></select>
+        <span class="error" data-error="area"></span>
+      </div>
+      <div class="campo">
+        <label for="tipo_atencion">Tipo de atención</label>
+        <select id="tipo_atencion" disabled><option value="">Elija primero el área</option></select>
+        <span class="error" data-error="tipo_atencion"></span>
+      </div>
+      <div class="campo">
+        <label for="sub_atencion">Sub atención</label>
+        <select id="sub_atencion" disabled><option value="">Elija primero el tipo</option></select>
+        <span class="error" data-error="sub_atencion"></span>
+      </div>
+
+      <div class="campo ancho">
+        <label for="descripcion">Descripción</label>
+        <textarea id="descripcion" rows="3"></textarea>
+      </div>
+      <div class="campo ancho">
+        <label for="accion">Acción realizada</label>
+        <input type="text" id="accion" maxlength="255">
+      </div>
+
+      <div class="campo ancho">
+        <label class="opcion"><input type="checkbox" id="es_coordinacion_preparatoria"> Es una coordinación preparatoria (no pondera)</label>
+        <label class="opcion"><input type="checkbox" id="ingreso_a_tubo"> Ingresa al Tubo</label>
+      </div>
+    </div>
+   </fieldset>
+
+    <div class="form-pie">
+      <button type="reset" class="btn btn-borde" id="btnLimpiar" {% if sin_ficha %}disabled{% endif %}>Limpiar</button>
+      <button type="submit" class="btn btn-primario" id="btnGuardar" {% if sin_ficha %}disabled{% endif %}><i class="bi bi-check-lg"></i> Guardar registro</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'atenciones/js/actividad_registrar.js' %}?v=20261121-1"></script>
+{% endblock %}

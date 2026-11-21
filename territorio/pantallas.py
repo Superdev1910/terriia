@@ -44,6 +44,14 @@ MENU_SECCIONES = [
     ),
     ("Administración", [("core_roles", "Roles", "bi-shield-lock")]),
     (
+        "Actividades",
+        [
+            ("atenciones_registrar", "Registrar actividad", "bi-journal-plus"),
+            ("atenciones_mis_registros", "Mis registros", "bi-journal-text"),
+            ("atenciones_verificacion", "Verificación", "bi-patch-check"),
+        ],
+    ),
+    (
         "Atenciones",
         [
             ("atenciones_tipos", "Tipos de atención", "bi-tags"),
@@ -52,15 +60,20 @@ MENU_SECCIONES = [
     ),
 ]
 
+PAGINAS_ACTIVIDADES = {"atenciones_registrar", "atenciones_mis_registros"}  # SCRUM-62
 PAGINAS_POR_ROL = {
+    Rol.ENCARGADO_AREA: {*PAGINAS_ACTIVIDADES, "atenciones_verificacion"},
+    Rol.JEFE_DELEGACIONES: {"atenciones_verificacion"},
     Rol.DELEGADO_TERRITORIAL: {
+        *PAGINAS_ACTIVIDADES,
+        "atenciones_verificacion",
         "territorio_territorios",
         "territorio_juntas",
         "personas_funcionarios",
         "metas_delegacion",
         "metas_individuales",
     },
-    Rol.FUNCIONARIO: {"personas_mi_perfil"},
+    Rol.FUNCIONARIO: {"personas_mi_perfil", *PAGINAS_ACTIVIDADES},
 }
 
 

@@ -1,0 +1,76 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Mis registros{% endblock %}
+{% block contenido %}
+<link rel="stylesheet" href="{% static 'atenciones/css/actividad.css' %}?v=20261121-2">
+<div class="encabezado-pagina">
+  <div>
+    <h1>Mis registros</h1>
+    <p class="subtitulo">Actividades y gestiones sociales que ingresó. La columna Pondera indica si cuenta para la meta.</p>
+  </div>
+  <div class="acciones-pagina">
+    <button class="btn btn-borde" id="btnExcel" type="button"><i class="bi bi-file-earmark-excel"></i> Exportar a Excel</button>
+    <a class="btn btn-primario" href="{% url 'atenciones_registrar' %}"><i class="bi bi-plus-lg"></i> Registrar actividad</a>
+  </div>
+</div>
+
+<section class="panel" aria-label="Listado">
+  <form class="filtros" id="filtros" role="search" onsubmit="return false">
+    <label class="campo-buscar">
+      <span class="sr">Buscar</span>
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input type="search" id="buscar" placeholder="Código, RUT, nombre o descripción…" autocomplete="off">
+    </label>
+    <div class="filtros-extra">
+      <select id="filtroTipo" aria-label="Filtrar por tipo de registro">
+        <option value="">Todos los tipos</option>
+        <option value="actividad">Actividad</option>
+        <option value="gestion_social">Gestión social</option>
+      </select>
+      <select id="filtroPondera" aria-label="Filtrar por ponderación">
+        <option value="">Pondera: todos</option>
+        <option value="true">Pondera</option>
+        <option value="false">No pondera</option>
+      </select>
+      <select id="filtroVerificacion" aria-label="Filtrar por verificación">
+        <option value="">Verificación: todas</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="aprobada">Aprobada</option>
+        <option value="rechazada">Rechazada</option>
+        <option value="antecedentes">Requiere antecedentes</option>
+      </select>
+      <label class="filtro-fecha">Desde <input type="date" id="filtroDesde"></label>
+      <label class="filtro-fecha">Hasta <input type="date" id="filtroHasta"></label>
+    </div>
+    <button type="button" class="btn btn-texto" id="btnLimpiar"><i class="bi bi-x-circle"></i> Limpiar</button>
+  </form>
+
+  <div class="tabla-scroll">
+    <table class="tabla">
+      <caption class="sr">Mis actividades registradas</caption>
+      <thead>
+        <tr>
+          <th scope="col">Código</th><th scope="col">Fecha</th><th scope="col">Tipo</th>
+          <th scope="col">Ítem</th><th scope="col">Vecino</th><th scope="col">Pondera</th>
+          <th scope="col">Verificación</th><th scope="col"><span class="sr">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpoTabla"></tbody>
+    </table>
+  </div>
+
+  <div id="estado" class="estado" role="status" aria-live="polite"></div>
+
+  <div class="pie-tabla">
+    <span id="total" class="total"></span>
+    <nav class="paginador" id="paginador" aria-label="Paginación"></nav>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+        integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
+        crossorigin="anonymous"></script>
+<script src="{% static 'atenciones/js/actividad_comun.js' %}?v=20261121-2"></script>
+<script src="{% static 'atenciones/js/actividad_mis_registros.js' %}?v=20261121-2"></script>
+{% endblock %}
