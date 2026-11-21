@@ -163,6 +163,10 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "TerriIA <no-responder@lase
 RECUPERACION_MINUTOS = int(os.getenv("RECUPERACION_MINUTOS", "15"))
 RECUPERACION_INTENTOS = 5
 
+# Actividades: la semana (lunes a domingo) se cierra al terminar el domingo + estos días de gracia.
+# A confirmar con el cliente.
+SEMANA_CIERRE_DIAS_GRACIA = int(os.getenv("SEMANA_CIERRE_DIAS_GRACIA", "1"))
+
 # Detrás de Nginx en producción
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

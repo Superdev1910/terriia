@@ -1,0 +1,19 @@
+/* Pantallas de actividades (SCRUM-62). Usa las variables de organizacion/css/terriia.css. */
+.panel-form { padding: 1.25rem; }
+.form-grilla { display: grid; gap: 1rem 1.25rem; grid-template-columns: repeat(2, 1fr); }
+.form-grilla fieldset.campo { border: 0; padding: 0; margin: 0; display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.form-grilla legend { font-weight: 700; font-size: .88rem; margin-bottom: .4rem; padding: 0; }
+.opcion { display: inline-flex; align-items: center; gap: .5rem; font-weight: 400 !important; cursor: pointer; }
+.opcion input { width: auto; accent-color: var(--rojo); }
+.grupo-rut { display: flex; gap: .5rem; }
+.grupo-rut input { flex: 1 1 auto; min-width: 0; }
+.form-pie { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gris-300); }
+.filtro-fecha { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; font-weight: 700; color: var(--gris-700); }
+.filtro-fecha input { width: auto; }
+.etiqueta.alerta { background: #fff4e0; color: #7a4a00; border: 1px solid #f0c987; }
+.mono { font-family: Consolas, "Courier New", monospace; white-space: nowrap; }
+@media (max-width: 720px) {
+  .form-grilla { grid-template-columns: 1fr; }
+  .form-pie { flex-direction: column-reverse; }
+  .form-pie .btn { width: 100%; justify-content: center; }
+}

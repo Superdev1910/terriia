@@ -7,6 +7,8 @@ urlpatterns = [
     path("api/", include("personas.urls")),
     # Cada integrante agrega aquí la línea de su app cuando tenga su urls.py:
     path("api/", include("organizacion.urls")),
+    # atenciones va antes que territorio: /api/vecinos/buscar/ no debe caer en vecinos/<pk>/.
+    path("api/", include("atenciones.urls")),
     path("api/", include("territorio.urls")),
     path("organizacion/", include("organizacion.urls_pantallas")),  # pantallas HTML (Brian)
     path("territorio/", include("territorio.urls_pantallas")),
@@ -14,7 +16,6 @@ urlpatterns = [
     path("personas/", include("personas.urls_pantallas")),
     path("api/", include("metas.urls")),
     path("metas/", include("metas.urls_pantallas")),
-    path("api/", include("atenciones.urls")),
     path("atenciones/", include("atenciones.urls_pantallas")),
     path("api-auth/", include("rest_framework.urls")),  # login de la API navegable
     path("", include("organizacion.urls_publico")),  # sitio público + acceso (Brian)
