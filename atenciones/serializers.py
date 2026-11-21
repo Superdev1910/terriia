@@ -124,6 +124,7 @@ class ActividadSerializer(serializers.ModelSerializer):
     fecha = serializers.DateTimeField(required=False)
     n_evidencias = serializers.IntegerField(read_only=True, default=0)
     puede_editar = serializers.SerializerMethodField()
+    ultima_observacion = serializers.SerializerMethodField()
 
     class Meta:
         model = Actividad
@@ -164,6 +165,7 @@ class ActividadSerializer(serializers.ModelSerializer):
             "motivo_no_pondera",
             "n_evidencias",
             "puede_editar",
+            "ultima_observacion",
         ]
         read_only_fields = [
             "codigo",
@@ -174,6 +176,13 @@ class ActividadSerializer(serializers.ModelSerializer):
             "pondera",
             "motivo_no_pondera",
         ]
+
+    def get_ultima_observacion(self, obj):
+        """Lo que escribió quien verificó al pedir antecedentes o rechazar (si corresponde)."""
+        if obj.estado_verificacion not in verificacion.EXIGEN_OBSERVACION:
+            return ""
+        ultimo = obj.historial_verificacion.filter(estado_nuevo=obj.estado_verificacion).last()
+        return ultimo.observacion if ultimo else ""
 
     def get_puede_editar(self, obj):
         """Solo el autor y solo mientras esté pendiente o con antecedentes pedidos."""

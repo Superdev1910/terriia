@@ -39,8 +39,8 @@
       <td>${esc(r.item_nombre)}</td>
       <td>${esc(r.vecino_nombre || r.contacto)}<br><small>${esc(r.vecino_rut || '')}</small></td>
       <td>${pondera}</td>
-      <td>${badge(r.estado_verificacion)}</td>
-      <td class="acciones">${r.puede_editar ? `<button class="btn-accion" data-editar="${r.id_actividad}"><i class="bi bi-pencil"></i> Editar</button>` : ''}
+      <td>${badge(r.estado_verificacion)}${r.ultima_observacion ? `<p class="obs-verificador"><strong>Verificador:</strong> ${esc(r.ultima_observacion)}</p>` : ''}</td>
+      <td class="acciones acciones-apiladas">${r.puede_editar ? `<button class="btn-accion" data-editar="${r.id_actividad}"><i class="bi bi-pencil"></i> Editar</button>` : ''}
         <button class="btn-accion" data-evidencias="${r.id_actividad}"><i class="bi bi-paperclip"></i> Evidencias (${r.n_evidencias})</button></td>
     </tr>`;
   }
@@ -103,7 +103,7 @@
     const r = filas.find((x) => x.id_actividad === id);
     const res = await Swal.fire({
       titleText: `Editar ${r.codigo}`, confirmButtonText: 'Guardar', showCancelButton: true, cancelButtonText: 'Cancelar', confirmButtonColor: '#ad0000',
-      html: `<div class="form-swal"><label>Descripción<textarea id="eDescripcion" class="swal2-textarea">${esc(r.descripcion)}</textarea></label>
+      html: `${r.ultima_observacion ? `<p class="aviso-cascada" role="status">El verificador pidió: ${esc(r.ultima_observacion)}</p>` : ''}<div class="form-swal"><label>Descripción<textarea id="eDescripcion" class="swal2-textarea">${esc(r.descripcion)}</textarea></label>
         <label>Acción realizada<input id="eAccion" class="swal2-input" value="${esc(r.accion)}"></label>
         <label>Nombre de la persona atendida<input id="eContacto" class="swal2-input" value="${esc(r.contacto)}"></label>
         <label>Teléfono<input id="eTelefono" class="swal2-input" value="${esc(r.telefono)}"></label></div>`,
