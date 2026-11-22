@@ -4,7 +4,7 @@ from django.db import transaction
 from organizacion.models import Delegacion
 from personas.models import Funcionario
 from rest_framework import serializers
-from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta
+from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta, FelicitacionReclamo
 
 TOPE_PORCENTAJE = "En un ítem de tipo porcentaje la meta no puede superar 100%."
 
@@ -335,3 +335,15 @@ class RecalibracionMetaSerializer(serializers.ModelSerializer):
             meta_delegacion.valor_objetivo_total += nuevo - anterior
             meta_delegacion.save(update_fields=["valor_objetivo_total"])
         return recalibracion
+
+def _periodo_de(fecha):
+    return Periodo.objects.filter(fecha_inicio__lte=fecha, fecha_termino__gte=fecha).first()
+
+def _validar_tope_felicitaciones(funcionario, fecha, periodo):
+    usadas = FelicitacionReclamo.objects.filter(
+        funcionario=funcionario, tipo=FelicitacionReclamo.FELICITACION, fecha__gte=periodo.fecha_inicio, fecha__lte=periodo.fecha_termino,).count()
+    if usadas >= FelicitacionReclamo.TOPE_FELICITACIONES:
+        raise serializers.ValidationError({"tipo": "El funcionario ya tiene " f"{FelicitacionReclamo.TOPE_FELICITACIONES} felicitaciones"})
+
+class FelicitacionReclamoSerializer(serializers.ModelSerializer):
+    pass
