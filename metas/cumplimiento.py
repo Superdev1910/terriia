@@ -31,8 +31,12 @@ def calcular_cumplimiento(valor_objetivo, avance_real, ponderador=None):
 
 def ajuste_felicitaciones_reclamos(funcionario, periodo):
     from .models import FelicitacionReclamo
-    total = FelicitacionReclamo.objects.filter(funcionario=funcionario, fecha__gte=periodo.fecha_inicio, fecha__lte=periodo.fecha_termino).aggregate(total=Sum("impacto_pct"))["total"]
+
+    total = FelicitacionReclamo.objects.filter(
+        funcionario=funcionario, fecha__gte=periodo.fecha_inicio, fecha__lte=periodo.fecha_termino
+    ).aggregate(total=Sum("impacto_pct"))["total"]
     return total or Decimal("0")
+
 
 def cumplimiento_ponderado_total(ponderados, ajuste=0):
     total = sum((_decimal(p) for p in ponderados), Decimal("0")) + _decimal(ajuste)

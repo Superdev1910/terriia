@@ -14,6 +14,8 @@ router.register(r"items", ItemViewSet, basename="item")
 router.register(r"metas-delegacion", MetaDelegacionViewSet, basename="meta-delegacion")
 router.register(r"metas", MetaIndividualViewSet, basename="meta")
 router.register(r"recalibraciones-meta", RecalibracionMetaViewSet, basename="recalibracion-meta")
-router.register(r"felicitaciones-reclamos", FelicitacionReclamoViewSet, basename="felicitacion-reclamo")
+router.register(
+    r"felicitaciones-reclamos", FelicitacionReclamoViewSet, basename="felicitacion-reclamo"
+)
 
 urlpatterns = router.urls

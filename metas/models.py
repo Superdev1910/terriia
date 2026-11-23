@@ -183,4 +183,3 @@ class FelicitacionReclamo(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} de {self.funcionario_id} ({self.fecha})"
-    
