@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import SimpleTestCase
 from rest_framework.test import APITestCase
 
-from metas.cumplimiento import calcular_cumplimiento
+from metas.cumplimiento import calcular_cumplimiento, cumplimiento_ponderado_total
 
 from .datos_base import DatosMetasMixin
 
@@ -58,6 +58,18 @@ class ReglasDeCumplimientoTests(SimpleTestCase):
         with self.assertRaises(ValueError):
             calcular_cumplimiento(40, -1)
 
+class CumplimientoTotalTests(SimpleTestCase):
+    def test_suma_de_ponderados(self):
+        self.assertEqual(cumplimiento_ponderado_total([10, 15, 25, 15, 5, 30]), Decimal("100.00"))
+
+    def test_felicitacion_suma(self):
+        self.assertEqual(cumplimiento_ponderado_total([40, 45], 10), Decimal("95.00"))
+
+    def test_reclamo_resta(self):
+        self.assertEqual(cumplimiento_ponderado_total([40, 45], -20), Decimal("65.00"))
+
+    def test_sin_actividades_solo_el_ajuste(self):
+        self.assertEqual(cumplimiento_ponderado_total([], 10), Decimal("10.00"))
 
 class RecalibracionYCumplimientoTests(DatosMetasMixin, APITestCase):
     def test_recalibrar_cambia_el_cumplimiento_con_las_mismas_reglas(self):
