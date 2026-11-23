@@ -99,3 +99,6 @@ class RecalibracionMetaViewSet(MantenedorViewSet):
     search_fields = ["motivo"]
     filterset_fields = ["meta", "usuario"]
     http_method_names = ["get", "head", "options"]
+
+class FelicitacionReclamoViewSet(MantenedorViewSet):
+    pass

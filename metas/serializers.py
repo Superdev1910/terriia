@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.utils import timezone
 from django.db.models.aggregates import Sum
 from django.db import transaction
 from organizacion.models import Delegacion
@@ -393,4 +394,8 @@ class FelicitacionReclamoSerializer(serializers.ModelSerializer):
 
     def create (self, datos):
         with transaction.atomic():
-            pass
+            Funcionario.objects.select_for_update().get(pk=datos["funcionario"].pk)
+            if datos["tipo"] == FelicitacionReclamo.FELICITACION:
+                fecha = datos.get("fecha") or timezone.localdate()
+                _validar_tope_felicitaciones(datos["funcionario"], fecha, _periodo_de(fecha))
+            return FelicitacionReclamo.objects.create(usuario_autoriza=self.context["request"].user, **datos)
