@@ -7,13 +7,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from core import auditoria
 from core.views import MantenedorViewSet
-from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta
+from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta, FelicitacionReclamo
 from .serializers import (
     ItemSerializer,
     PeriodoSerializer,
     MetaDelegacionSerializer,
     MetaIndividualSerializer,
     RecalibracionMetaSerializer,
+    FelicitacionReclamoSerializer,
 )
 
 SIN_BORRAR = ["get", "post", "put", "patch", "head", "options"]
@@ -101,4 +102,9 @@ class RecalibracionMetaViewSet(MantenedorViewSet):
     http_method_names = ["get", "head", "options"]
 
 class FelicitacionReclamoViewSet(MantenedorViewSet):
-    pass
+    queryset = FelicitacionReclamo.objects.select_related("funcionario", "usuario_autoriza")
+    serializer_class = FelicitacionReclamoSerializer
+    search_fields = ["motivo", "funcionario__nombre", "funcionario__identificador_inst"]
+    filterset_fields = {"funcionario": ["exact"], "funcionario__delegacion": ["exact"], "tipo": ["exact"], "fecha": ["gte", "lte"],}
+    http_method_names = ["get", "post", "head", "options"]
+
