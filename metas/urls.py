@@ -1,9 +1,12 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
+    DashboardDelegacionView,
+    DashboardFuncionarioView,
     ItemViewSet,
-    PeriodoViewSet,
     MetaDelegacionViewSet,
     MetaIndividualViewSet,
+    PeriodoViewSet,
     RecalibracionMetaViewSet,
 )
 
@@ -14,4 +17,16 @@ router.register(r"metas-delegacion", MetaDelegacionViewSet, basename="meta-deleg
 router.register(r"metas", MetaIndividualViewSet, basename="meta")
 router.register(r"recalibraciones-meta", RecalibracionMetaViewSet, basename="recalibracion-meta")
 
-urlpatterns = router.urls
+
+urlpatterns = router.urls + [
+    path(
+        "dashboard/funcionario/<int:funcionario_id>/",
+        DashboardFuncionarioView.as_view(),
+        name="dashboard-funcionario",
+    ),
+    path(
+        "dashboard/delegacion/<int:delegacion_id>/",
+        DashboardDelegacionView.as_view(),
+        name="dashboard-delegacion",
+    ),
+]
