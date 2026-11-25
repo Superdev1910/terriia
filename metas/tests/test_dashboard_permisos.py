@@ -34,6 +34,14 @@ class DashboardPermisosTests(TestCase):
         _, self.delegado_centro = self._persona(self.centro, "del-cen", Rol.DELEGADO_TERRITORIAL)
         _, self.delegado_norte = self._persona(self.norte, "del-nor", Rol.DELEGADO_TERRITORIAL)
         self.admin = self._usuario("admin", Rol.ADMINISTRADOR, None, None)
+        self.alcaldesa = self._usuario("alcaldesa", Rol.ALCALDESA, None, None)
+        self.jefe = self._usuario("jefe", Rol.JEFE_DELEGACIONES, None, None)
+        self.super = self._usuario("super", Rol.FUNCIONARIO, None, None)
+        self.super.is_superuser = True
+        self.super.save()
+        _, self.encargado_centro = self._persona(self.centro, "enc-cen", Rol.ENCARGADO_AREA)
+        _, self.encargado_norte = self._persona(self.norte, "enc-nor", Rol.ENCARGADO_AREA)
+        self.delegado_sin = self._usuario("del-sin", Rol.DELEGADO_TERRITORIAL, None, None)
         md = MetaDelegacion.objects.create(
             item=self.item,
             delegacion=self.centro,
@@ -132,3 +140,36 @@ class DashboardPermisosTests(TestCase):
         r = self._get(self.admin, "dashboard-funcionario", self.ana.pk)
         self.assertEqual(r.data["items"][0]["avance_aprobado"], 1)
         self.assertGreater(r.data["cumplimiento_bruto"], 0)
+
+    def test_roles_con_acceso_global_ven_todo(self):
+        for usuario in (self.alcaldesa, self.jefe, self.super):
+            r = self._get(usuario, "dashboard-funcionario", self.ana.pk)
+            self.assertEqual(r.status_code, 200)
+            r = self._get(usuario, "dashboard-delegacion", self.norte.pk)
+            self.assertEqual(r.status_code, 200)
+
+    def test_encargado_de_area_solo_su_delegacion(self):
+        r = self._get(self.encargado_centro, "dashboard-funcionario", self.ana.pk)
+        self.assertEqual(r.status_code, 200)
+        r = self._get(self.encargado_centro, "dashboard-delegacion", self.centro.pk)
+        self.assertEqual(r.status_code, 200)
+        r = self._get(self.encargado_norte, "dashboard-funcionario", self.ana.pk)
+        self.assertEqual(r.status_code, 403)
+        r = self._get(self.encargado_norte, "dashboard-delegacion", self.centro.pk)
+        self.assertEqual(r.status_code, 403)
+
+    def test_delegado_sin_delegacion_recibe_403(self):
+        r = self._get(self.delegado_sin, "dashboard-funcionario", self.ana.pk)
+        self.assertEqual(r.status_code, 403)
+        r = self._get(self.delegado_sin, "dashboard-delegacion", self.centro.pk)
+        self.assertEqual(r.status_code, 403)
+
+    def test_delegacion_inexistente_consultada_por_delegado_da_404(self):
+        r = self._get(self.delegado_centro, "dashboard-delegacion", 99999)
+        self.assertEqual(r.status_code, 404)
+
+    def test_periodo_con_digitos_unicode_da_400(self):
+        r = self._get(self.admin, "dashboard-funcionario", self.ana.pk, periodo="²")
+        self.assertEqual(r.status_code, 400)
+        r = self._get(self.admin, "dashboard-delegacion", self.centro.pk, periodo="²")
+        self.assertEqual(r.status_code, 400)

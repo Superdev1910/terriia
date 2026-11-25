@@ -79,6 +79,11 @@ class AvanceYCumplimientoTests(TestCase):
         self._actividad(self.ana, self.visitas, pondera=False)
         self.assertEqual(avance_actual(self.ana, self.visitas, self.periodo), 1)
 
+    def test_una_gestion_social_aprobada_no_cuenta(self):
+        self._actividad(self.ana, self.visitas)
+        self._actividad(self.ana, self.visitas, tipo_registro=Actividad.GESTION_SOCIAL)
+        self.assertEqual(avance_actual(self.ana, self.visitas, self.periodo), 1)
+
     def test_solo_cuenta_lo_del_funcionario_item_y_periodo(self):
         self._actividad(self.ana, self.visitas)
         self._actividad(self.luis, self.visitas)  # otro funcionario

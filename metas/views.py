@@ -155,10 +155,14 @@ def _periodo_del_dashboard(request):
     """Período pedido en ?periodo= (400 si no es numérico, 404 si no existe) o el vigente."""
     valor = request.query_params.get("periodo")
     if valor:
-        if not valor.isdigit():
+        try:
+            pk = int(valor) if valor.isdecimal() else None
+        except ValueError:
+            pk = None
+        if pk is None:
             raise ValidationError({"periodo": "Debe ser un número."})
         try:
-            return Periodo.objects.get(pk=int(valor))
+            return Periodo.objects.get(pk=pk)
         except Periodo.DoesNotExist:
             raise NotFound("El período no existe.")
     periodo = Periodo.objects.filter(estado="vigente").first()

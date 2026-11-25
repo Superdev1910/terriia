@@ -62,6 +62,7 @@ def avance_actual(funcionario, item, periodo):
     return Actividad.objects.filter(
         funcionario=funcionario,
         item=item,
+        tipo_registro=Actividad.ACTIVIDAD,
         estado_verificacion=Actividad.VERIF_APROBADA,
         pondera=True,
         fecha__gte=inicio,
