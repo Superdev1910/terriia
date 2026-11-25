@@ -4,6 +4,7 @@ from django.db import models
 from django.conf import settings
 from organizacion.models import Cargo
 from django.utils import timezone
+from decimal import Decimal
 
 
 class Periodo(models.Model):
@@ -145,3 +146,39 @@ class RecalibracionMeta(models.Model):
 
     def __str__(self):
         return f"Recalibración {self.id_recalibracion} de la meta {self.meta_id}"
+
+
+class FelicitacionReclamo(models.Model):
+    FELICITACION, RECLAMO = "felicitacion", "reclamo"
+    TIPOS = [(FELICITACION, "Felicitación"), (RECLAMO, "Reclamo")]
+    IMPACTOS = {FELICITACION: Decimal("10.00"), RECLAMO: Decimal("-20.00")}
+    TOPE_FELICITACIONES = 3
+
+    id_felicitacion_reclamo = models.AutoField(primary_key=True)
+    funcionario = models.ForeignKey(
+        "personas.Funcionario",
+        on_delete=models.PROTECT,
+        db_column="id_funcionario",
+        related_name="felicitaciones_reclamos",
+    )
+    tipo = models.CharField(max_length=15, choices=TIPOS)
+    fecha = models.DateField(default=timezone.localdate)
+    motivo = models.CharField(max_length=255, blank=True, null=True)
+    usuario_aurotiza = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        db_column="usuario_autoriza_id",
+        related_name="felicitaciones_reclamos_autorizados",
+    )
+    impacto_pct = models.DecimalField(max_digits=5, decimal_places=2)
+
+    class Meta:
+        db_table = "felicitacion_reclamo"
+        ordering = ["-fecha", "-id_felicitacion_reclamo"]
+
+    def save(self, *args, **kwargs):
+        self.impacto_pct = self.IMPACTOS[self.tipo]
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} de {self.funcionario_id} ({self.fecha})"

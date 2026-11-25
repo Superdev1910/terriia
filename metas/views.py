@@ -8,6 +8,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from core import auditoria
 from core.permissions import IsAdministradorODelegado, IsAdministradorODelegadoLectura
+from .models import (
+    Item,
+    Periodo,
+    MetaDelegacion,
+    MetaIndividual,
+    RecalibracionMeta,
+    FelicitacionReclamo,
+)
 from core.views import MantenedorViewSet
 from organizacion.models import Delegacion
 from personas.models import Funcionario
@@ -18,6 +26,7 @@ from .serializers import (
     MetaIndividualSerializer,
     PeriodoSerializer,
     RecalibracionMetaSerializer,
+    FelicitacionReclamoSerializer,
 )
 from .services import CalculoMetasService
 
@@ -122,6 +131,17 @@ class RecalibracionMetaViewSet(MantenedorViewSet):
     delegacion_lookup = "meta__meta_delegacion__delegacion_id"
 
 
+class FelicitacionReclamoViewSet(MantenedorViewSet):
+    queryset = FelicitacionReclamo.objects.select_related("funcionario", "usuario_autoriza")
+    serializer_class = FelicitacionReclamoSerializer
+    search_fields = ["motivo", "funcionario__nombre", "funcionario__identificador_inst"]
+    filterset_fields = {
+        "funcionario": ["exact"],
+        "funcionario__delegacion": ["exact"],
+        "tipo": ["exact"],
+        "fecha": ["gte", "lte"],
+    }
+    http_method_names = ["get", "post", "head", "options"]
 class DashboardFuncionarioView(views.APIView):
     """
     Endpoint para obtener el semáforo y cumplimiento individual de un funcionario.

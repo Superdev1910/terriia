@@ -1,10 +1,18 @@
 from decimal import Decimal
 from django.db.models.aggregates import Sum
+from django.utils import timezone
 from django.db import transaction
 from organizacion.models import Delegacion
 from personas.models import Funcionario
 from rest_framework import serializers
-from .models import Item, Periodo, MetaDelegacion, MetaIndividual, RecalibracionMeta
+from .models import (
+    Item,
+    Periodo,
+    MetaDelegacion,
+    MetaIndividual,
+    RecalibracionMeta,
+    FelicitacionReclamo,
+)
 
 TOPE_PORCENTAJE = "En un ítem de tipo porcentaje la meta no puede superar 100%."
 
@@ -335,3 +343,84 @@ class RecalibracionMetaSerializer(serializers.ModelSerializer):
             meta_delegacion.valor_objetivo_total += nuevo - anterior
             meta_delegacion.save(update_fields=["valor_objetivo_total"])
         return recalibracion
+
+
+def _periodo_de(fecha):
+    return Periodo.objects.filter(fecha_inicio__lte=fecha, fecha_termino__gte=fecha).first()
+
+
+def _validar_tope_felicitaciones(funcionario, fecha, periodo):
+    usadas = FelicitacionReclamo.objects.filter(
+        funcionario=funcionario,
+        tipo=FelicitacionReclamo.FELICITACION,
+        fecha__gte=periodo.fecha_inicio,
+        fecha__lte=periodo.fecha_termino,
+    ).count()
+    if usadas >= FelicitacionReclamo.TOPE_FELICITACIONES:
+        raise serializers.ValidationError(
+            {
+                "tipo": "El funcionario ya tiene "
+                f"{FelicitacionReclamo.TOPE_FELICITACIONES} felicitaciones"
+            }
+        )
+
+
+class FelicitacionReclamoSerializer(serializers.ModelSerializer):
+    funcionario_nombre = (serializers.CharField(source="funcionario.nombre"),)
+    usuario_email = (serializers.CharField(source="usuario_autoriza.email"),)
+
+    class Meta:
+        model = FelicitacionReclamo
+        fields = [
+            "id_felicitacion_reclamo",
+            "funcionario",
+            "funcionario_nombre",
+            "tipo",
+            "fecha",
+            "motivo",
+            "impacto_pct",
+            "usuario_autoriza",
+            "usuario_email",
+        ]
+        read_only_fields = ["impacto_pct", "usuario_autoriza"]
+
+    def validate_motivo(self, valor):
+        valor = (valor or "").strip()
+        if not valor:
+            raise serializers.ValidationError("El motivo es obligatorio.")
+        return valor
+
+    def validate_funcionario(self, funcionario):
+        if funcionario.estado != Funcionario.ACTIVO:
+            raise serializers.ValidationError("El funcionario está inactivo.")
+        return funcionario
+
+    def validate_fecha(self, fecha):
+        if fecha > timezone.localdate():
+            raise serializers.ValidationError("La fecha no puede ser futura.")
+        if _periodo_de(fecha) is None:
+            raise serializers.ValidationError(
+                "La fecha no corresponde a ningún período registrado."
+            )
+        return fecha
+
+    def validate(self, datos):
+        if datos["tipo"] == FelicitacionReclamo.FELICITACION:
+            fecha = datos.get("fecha") or timezone.localdate()
+            periodo = _periodo_de(fecha)
+            if periodo is None:
+                raise serializers.ValidationError(
+                    {"fecha": "La fecha no pertenece a ningún periodo registrado"}
+                )
+            _validar_tope_felicitaciones(datos["funcionario"], fecha, periodo)
+        return datos
+
+    def create(self, datos):
+        with transaction.atomic():
+            Funcionario.objects.select_for_update().get(pk=datos["funcionario"].pk)
+            if datos["tipo"] == FelicitacionReclamo.FELICITACION:
+                fecha = datos.get("fecha") or timezone.localdate()
+                _validar_tope_felicitaciones(datos["funcionario"], fecha, _periodo_de(fecha))
+            return FelicitacionReclamo.objects.create(
+                usuario_autoriza=self.context["request"].user, **datos
+            )
