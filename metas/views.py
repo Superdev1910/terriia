@@ -7,7 +7,14 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from core import auditoria
-from core.permissions import IsAdministradorODelegado, IsAdministradorODelegadoLectura
+from atenciones.verificacion import acceso_global
+from core.models import Rol
+from core.permissions import (
+    IsAdministradorODelegado,
+    IsAdministradorODelegadoLectura,
+    rol_de_usuario,
+)
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from .models import (
     Item,
     Periodo,
@@ -142,6 +149,24 @@ class FelicitacionReclamoViewSet(MantenedorViewSet):
         "fecha": ["gte", "lte"],
     }
     http_method_names = ["get", "post", "head", "options"]
+
+
+def _periodo_del_dashboard(request):
+    """Período pedido en ?periodo= (400 si no es numérico, 404 si no existe) o el vigente."""
+    valor = request.query_params.get("periodo")
+    if valor:
+        if not valor.isdigit():
+            raise ValidationError({"periodo": "Debe ser un número."})
+        try:
+            return Periodo.objects.get(pk=int(valor))
+        except Periodo.DoesNotExist:
+            raise NotFound("El período no existe.")
+    periodo = Periodo.objects.filter(estado="vigente").first()
+    if not periodo:
+        raise ValidationError({"error": "No hay un período vigente activo."})
+    return periodo
+
+
 class DashboardFuncionarioView(views.APIView):
     """
     Endpoint para obtener el semáforo y cumplimiento individual de un funcionario.
@@ -151,18 +176,29 @@ class DashboardFuncionarioView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, funcionario_id):
-        periodo_id = request.query_params.get("periodo")
-        if not periodo_id:
-            periodo_vigente = Periodo.objects.filter(estado="vigente").first()
-            if not periodo_vigente:
-                return Response(
-                    {"error": "No hay un período vigente activo."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            periodo_id = periodo_vigente.pk
+        usuario = request.user
+        try:
+            funcionario = Funcionario.objects.get(pk=funcionario_id)
+        except Funcionario.DoesNotExist:
+            raise NotFound("El funcionario no existe.")
+        rol = rol_de_usuario(usuario)
+        if acceso_global(usuario):
+            permitido = True
+        elif rol == Rol.FUNCIONARIO:
+            permitido = usuario.funcionario_id == funcionario.pk
+        elif rol in (Rol.DELEGADO_TERRITORIAL, Rol.ENCARGADO_AREA):
+            permitido = (
+                usuario.delegacion_id is not None
+                and usuario.delegacion_id == funcionario.delegacion_id
+            )
+        else:
+            permitido = False
+        if not permitido:
+            raise PermissionDenied("No tiene permiso para ver este funcionario.")
 
+        periodo = _periodo_del_dashboard(request)
         resultado = CalculoMetasService.calcular_cumplimiento_funcionario(
-            funcionario_id=funcionario_id, periodo_id=periodo_id
+            funcionario_id=funcionario.pk, periodo_id=periodo.pk
         )
         return Response(resultado, status=status.HTTP_200_OK)
 
@@ -173,18 +209,18 @@ class DashboardDelegacionView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, delegacion_id):
-        periodo_id = request.query_params.get("periodo")
-        periodo = (
-            Periodo.objects.get(pk=periodo_id)
-            if periodo_id
-            else Periodo.objects.filter(estado="vigente").first()
-        )
-
-        if not periodo:
-            return Response(
-                {"error": "No hay un período vigente activo."},
-                status=status.HTTP_400_BAD_REQUEST,
+        usuario = request.user
+        if not Delegacion.objects.filter(pk=delegacion_id).exists():
+            raise NotFound("La delegación no existe.")
+        if not acceso_global(usuario):
+            es_responsable = rol_de_usuario(usuario) in (
+                Rol.DELEGADO_TERRITORIAL,
+                Rol.ENCARGADO_AREA,
             )
+            if not (es_responsable and usuario.delegacion_id == delegacion_id):
+                raise PermissionDenied("No tiene permiso para ver esta delegación.")
+
+        periodo = _periodo_del_dashboard(request)
 
         funcionarios = Funcionario.objects.filter(delegacion_id=delegacion_id, estado="activo")
         resumen_funcionarios = []

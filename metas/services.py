@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 from django.db.models import Sum
+from atenciones.models import Actividad
+from .cumplimiento import _limites_del_periodo
 from .models import Item, MetaDelegacion, MetaIndividual, Periodo
 
 
@@ -8,12 +10,13 @@ class CalculoMetasService:
     """Servicio para calcular el cumplimiento de metas y evaluar el semáforo diario."""
 
     TOPE_MAXIMO_COMPUTABLE = Decimal("120.00")  # Exigencia Evaluación 3
+    # TODO(Valentina/Nicolás): unificar el tope (120 vs 150) en una sola constante
 
     @classmethod
     def calcular_cumplimiento_funcionario(cls, funcionario_id, periodo_id, fecha_evaluacion=None):
         """
         Calcula el avance de un funcionario para un período dado:
-        - Solo considera actividades aprobadas (verificador_valido = True).
+        - Solo considera actividades aprobadas (estado de verificación aprobada, pondera).
         - Pondera según el peso del ítem en el cargo.
         - Aplica el tope máximo computable del 120%.
         """
@@ -21,6 +24,7 @@ class CalculoMetasService:
             fecha_evaluacion = date.today()
 
         periodo = Periodo.objects.get(pk=periodo_id)
+        inicio, fin = _limites_del_periodo(periodo)
 
         # 1. Obtener las metas asignadas al funcionario a través de meta_delegacion
         try:
@@ -50,18 +54,15 @@ class CalculoMetasService:
                 continue
 
             # Filtrar actividades del funcionario asociadas al ítem y período
-            try:
-                from actividad.models import Actividad
-
-                avance_aprobado = Actividad.objects.filter(
-                    funcionario_id=funcionario_id,
-                    item=item,
-                    fecha__range=[periodo.fecha_inicio, periodo.fecha_termino],
-                    verificacion_terreno__aprobada=True,  # Solo aprobados que ponderan
-                ).count()
-            except (ImportError, ModuleNotFoundError):
-                # Fallback si la app 'actividad' (SCRUM-62) no está disponible en la rama local
-                avance_aprobado = 0
+            avance_aprobado = Actividad.objects.filter(
+                funcionario_id=funcionario_id,
+                item=item,
+                tipo_registro=Actividad.ACTIVIDAD,
+                estado_verificacion=Actividad.VERIF_APROBADA,
+                pondera=True,
+                fecha__gte=inicio,
+                fecha__lt=fin,
+            ).count()
 
             # Porcentaje de cumplimiento del ítem individual
             if valor_objetivo > 0:
