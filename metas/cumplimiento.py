@@ -4,7 +4,9 @@ from datetime import datetime, time, timedelta
 from django.utils import timezone
 
 UMBRAL_CUMPLIDA = Decimal("80")
-TOPE_CUMPLIMIENTO = Decimal("150")
+TOPE_CUMPLIMIENTO = Decimal(
+    "150"
+)  # TODO(Valentina/Nicolás): unificar el tope (120 vs 150) en una sola constante
 _CENTESIMAS = Decimal("0.01")
 
 
@@ -44,24 +46,32 @@ def cumplimiento_ponderado_total(ponderados, ajuste=0):
     total = sum((_decimal(p) for p in ponderados), Decimal("0")) + _decimal(ajuste)
     return total.quantize(_CENTESIMAS, ROUND_HALF_UP)
 
+
 def _limites_del_periodo(periodo):
     inicio = timezone.make_aware(datetime.combine(periodo.fecha_inicio, time.min))
-    fin = timezone.make_aware(datetime.combine(periodo.fecha_termino, timedelta(days=1), time.min))
+    fin = timezone.make_aware(datetime.combine(periodo.fecha_termino + timedelta(days=1), time.min))
     return inicio, fin
+
+
 def avance_actual(funcionario, item, periodo):
     from atenciones.models import Actividad
+
     if item.tipo_meta != item.CONTEO:
         return None
     inicio, fin = _limites_del_periodo(periodo)
     return Actividad.objects.filter(
-        funcionario = funcionario,
-        item = item,
-        pondera = True,
-        fecha__gte = inicio,
+        funcionario=funcionario,
+        item=item,
+        estado_verificacion=Actividad.VERIF_APROBADA,
+        pondera=True,
+        fecha__gte=inicio,
         fecha__lt=fin,
     ).count()
+
+
 def cumplimiento_funcionario(funcionario, periodo):
     from .models import MetaIndividual
+
     metas = MetaIndividual.objects.filter(
         funcionario=funcionario, meta_delegacion__periodo=periodo
     ).select_related("meta_delegacion__item")

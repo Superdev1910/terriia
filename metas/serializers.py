@@ -366,8 +366,8 @@ def _validar_tope_felicitaciones(funcionario, fecha, periodo):
 
 
 class FelicitacionReclamoSerializer(serializers.ModelSerializer):
-    funcionario_nombre = (serializers.CharField(source="funcionario.nombre"),)
-    usuario_email = (serializers.CharField(source="usuario_autoriza.email"),)
+    funcionario_nombre = serializers.CharField(source="funcionario.nombre", read_only=True)
+    usuario_email = serializers.CharField(source="usuario_autoriza.email", read_only=True)
 
     class Meta:
         model = FelicitacionReclamo

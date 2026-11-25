@@ -164,7 +164,7 @@ class FelicitacionReclamo(models.Model):
     tipo = models.CharField(max_length=15, choices=TIPOS)
     fecha = models.DateField(default=timezone.localdate)
     motivo = models.CharField(max_length=255, blank=True, null=True)
-    usuario_aurotiza = models.ForeignKey(
+    usuario_autoriza = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         db_column="usuario_autoriza_id",
