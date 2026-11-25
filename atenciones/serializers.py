@@ -123,7 +123,17 @@ class ActividadSerializer(serializers.ModelSerializer):
     id_hito = serializers.IntegerField(source="hito_id", required=False, allow_null=True)
     fecha = serializers.DateTimeField(required=False)
     n_evidencias = serializers.IntegerField(read_only=True, default=0)
+    n_comentarios = serializers.IntegerField(read_only=True, default=0)
     puede_editar = serializers.SerializerMethodField()
+    # Seguimiento (Épica 2): los datos los cambian las acciones de seguimiento, no el alta.
+    responsable_nombre = serializers.CharField(
+        source="responsable.nombre", read_only=True, default=None
+    )
+    delegacion_codigo = serializers.CharField(
+        source="funcionario.delegacion.codigo", read_only=True, default=None
+    )
+    vencida = serializers.BooleanField(source="esta_vencida", read_only=True)  # HU07
+    dias_atraso = serializers.IntegerField(read_only=True)
     ultima_observacion = serializers.SerializerMethodField()
 
     class Meta:
@@ -160,10 +170,19 @@ class ActividadSerializer(serializers.ModelSerializer):
             "id_hito",
             "prioridad",
             "estado",
+            "fecha_estado",
+            "responsable",
+            "responsable_nombre",
+            "fecha_compromiso",
+            "motivo_atraso",
+            "vencida",
+            "dias_atraso",
+            "delegacion_codigo",
             "estado_verificacion",
             "pondera",
             "motivo_no_pondera",
             "n_evidencias",
+            "n_comentarios",
             "puede_editar",
             "ultima_observacion",
         ]
@@ -172,6 +191,10 @@ class ActividadSerializer(serializers.ModelSerializer):
             "funcionario",
             "fecha_registro",
             "estado",
+            "fecha_estado",
+            "responsable",
+            "fecha_compromiso",
+            "motivo_atraso",
             "estado_verificacion",
             "pondera",
             "motivo_no_pondera",

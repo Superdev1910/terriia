@@ -274,6 +274,26 @@ class Actividad(models.Model):
             es_coordinacion_preparatoria=self.es_coordinacion_preparatoria,
         )
 
+    # --- Seguimiento (Épica 2, HU07): una actividad vence si su compromiso ya pasó ----------
+    @property
+    def esta_vencida(self):
+        """Tiene fecha de compromiso ya pasada y todavía no está Realizada."""
+        return (
+            self.fecha_compromiso is not None
+            and self.estado != self.REALIZADO
+            and self.fecha_compromiso < timezone.localdate()
+        )
+
+    @property
+    def dias_atraso(self):
+        """Días de atraso: contra hoy si sigue abierta; contra el cierre si ya se realizó."""
+        if self.fecha_compromiso is None:
+            return 0
+        referencia = timezone.localdate()
+        if self.estado == self.REALIZADO and self.fecha_estado:
+            referencia = timezone.localtime(self.fecha_estado).date()
+        return max((referencia - self.fecha_compromiso).days, 0)
+
     def verificar_no_aprobada(self):
         """Una actividad aprobada en la base de datos no se modifica (ni por API ni por admin)."""
         if self.pk and not self._state.adding:
@@ -429,3 +449,71 @@ class Evidencia(models.Model):
         if archivo:
             archivo.delete(save=False)
         return resultado
+
+
+class ActividadHistorial(models.Model):
+    """Tabla `actividad_historial` (SQL v2.4; HU03, HU05 y HU06): cada cambio del estado
+    operativo, de la fecha de compromiso o del motivo de atraso (quién, cuándo, de qué a qué).
+
+    No se confunde con `HistorialVerificacion`, que registra la verificación de la actividad.
+    """
+
+    ESTADO, FECHA_COMPROMISO, MOTIVO_ATRASO = "estado", "fecha_compromiso", "motivo_atraso"
+    CAMPOS = [
+        (ESTADO, "Estado"),
+        (FECHA_COMPROMISO, "Fecha de compromiso"),
+        (MOTIVO_ATRASO, "Motivo de atraso"),
+    ]
+
+    id_historial = models.AutoField(primary_key=True)
+    actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.PROTECT,
+        db_column="id_actividad",
+        related_name="historial_seguimiento",
+    )
+    campo = models.CharField(max_length=16, choices=CAMPOS)
+    valor_anterior = models.CharField(max_length=255, null=True, blank=True)
+    valor_nuevo = models.CharField(max_length=255)
+    usuario = models.ForeignKey(
+        "personas.Usuario",
+        on_delete=models.PROTECT,
+        db_column="usuario_id",
+        related_name="cambios_actividad",
+    )
+    fecha_cambio = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "actividad_historial"
+        ordering = ["-fecha_cambio", "-id_historial"]
+        verbose_name_plural = "historial de seguimiento"
+
+    def __str__(self):
+        return f"{self.campo}: {self.valor_anterior} -> {self.valor_nuevo}"
+
+
+class Comentario(models.Model):
+    """Tabla `comentario` (SQL v2.4; HU08). Solo se agregan: no se editan ni se borran."""
+
+    id_comentario = models.AutoField(primary_key=True)
+    actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.PROTECT,
+        db_column="id_actividad",
+        related_name="comentarios",
+    )
+    usuario = models.ForeignKey(
+        "personas.Usuario",
+        on_delete=models.PROTECT,
+        db_column="id_usuario",
+        related_name="comentarios",
+    )
+    texto = models.TextField()
+    fecha = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "comentario"
+        ordering = ["fecha", "id_comentario"]
+
+    def __str__(self):
+        return f"Comentario {self.id_comentario} de la actividad {self.actividad_id}"

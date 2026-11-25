@@ -67,6 +67,11 @@ def es_autor(usuario, actividad):
     return bool(usuario.funcionario_id) and actividad.funcionario_id == usuario.funcionario_id
 
 
+def es_responsable(usuario, actividad):
+    """Funcionario asignado como responsable de la actividad (seguimiento, Épica 2)."""
+    return bool(usuario.funcionario_id) and actividad.responsable_id == usuario.funcionario_id
+
+
 def en_alcance(usuario, actividad):
     """Misma delegación del autor; Administrador, Jefe de delegaciones y Alcaldesa ven todo."""
     if acceso_global(usuario):
@@ -92,17 +97,18 @@ def puede_verificar(usuario, actividad):
 
 
 def puede_gestionar_evidencias(usuario, actividad):
-    """Subir o quitar evidencias: el autor o un verificador con alcance sobre la actividad."""
-    if es_autor(usuario, actividad):
+    """Subir o quitar evidencias: el autor, el responsable o un verificador con alcance."""
+    if es_autor(usuario, actividad) or es_responsable(usuario, actividad):
         return True
     rol = rol_de_usuario(usuario)
     return rol in ROLES_VERIFICADORES and en_alcance(usuario, actividad)
 
 
 def puede_ver(usuario, actividad):
-    """Ver la actividad y descargar sus evidencias (el Funcionario, solo las propias)."""
+    """Ver la actividad y descargar sus evidencias (el Funcionario, las propias o las que
+    tiene asignadas como responsable)."""
     if rol_de_usuario(usuario) == Rol.FUNCIONARIO:
-        return es_autor(usuario, actividad)
+        return es_autor(usuario, actividad) or es_responsable(usuario, actividad)
     return en_alcance(usuario, actividad)
 
 

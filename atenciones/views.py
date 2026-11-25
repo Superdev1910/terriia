@@ -3,9 +3,10 @@ import os
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django_filters import rest_framework as filters
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -27,8 +28,15 @@ from organizacion.paginacion import PaginacionMantenedor
 from personas.models import Funcionario
 from territorio.models import Territorio, Vecino
 
-from . import reglas, verificacion
-from .models import Actividad, Evidencia, SubAtencion, TipoAtencion
+from . import reglas, seguimiento, verificacion
+from .models import (
+    Actividad,
+    ActividadHistorial,
+    Comentario,
+    Evidencia,
+    SubAtencion,
+    TipoAtencion,
+)
 from .serializers import (
     ActividadSerializer,
     EvidenciaSerializer,
@@ -118,6 +126,19 @@ class PuedeVerificar(BasePermission):
         )
 
 
+class PuedeSeguimiento(BasePermission):
+    """Seguimiento (Épica 2): leer lo pueden todos los roles con alcance; operar, solo los roles
+    de seguimiento (la regla fina por actividad está en atenciones/seguimiento.py)."""
+
+    message = "No tienes permiso para dar seguimiento a esta actividad."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if request.method in SAFE_METHODS:
+            return rol_de_usuario(user) in ROLES_QUE_CONSULTAN and verificacion.tiene_alcance(user)
+        return seguimiento.PuedeHacerSeguimiento().has_permission(request, view)
+
+
 class PuedeConsultarEvidencias(BasePermission):
     message = "No tienes permiso para ver evidencias."
 
@@ -153,15 +174,33 @@ def actividad_conflicto(exc):
     return exc
 
 
+def vencidas_q():
+    """HU07: compromiso ya pasado y la actividad todavía no está Realizada."""
+    return Q(fecha_compromiso__lt=timezone.localdate()) & ~Q(estado=Actividad.REALIZADO)
+
+
 class ActividadFiltro(filters.FilterSet):
     desde = filters.DateFilter(field_name="fecha", lookup_expr="date__gte")
     hasta = filters.DateFilter(field_name="fecha", lookup_expr="date__lte")
     mis_registros = filters.BooleanFilter(method="filtrar_mis_registros")
     no_propias = filters.BooleanFilter(method="filtrar_no_propias")
+    vencida = filters.BooleanFilter(method="filtrar_vencida")  # HU07
 
     class Meta:
         model = Actividad
-        fields = ["tipo_registro", "estado", "estado_verificacion", "pondera", "item", "area"]
+        fields = [
+            "tipo_registro",
+            "estado",
+            "estado_verificacion",
+            "pondera",
+            "item",
+            "area",
+            "prioridad",
+            "responsable",
+        ]
+
+    def filtrar_vencida(self, queryset, nombre, valor):
+        return queryset.filter(vencidas_q()) if valor else queryset.exclude(vencidas_q())
 
     def filtrar_no_propias(self, queryset, nombre, valor):
         if valor:
@@ -184,15 +223,45 @@ class ActividadViewSet(MantenedorViewSet):
     permission_classes = [PuedeRegistrarActividades]
     queryset = (
         Actividad.objects.select_related(
-            "funcionario", "item", "vecino", "territorio", "area", "tipo_atencion", "sub_atencion"
+            "funcionario__delegacion",
+            "item",
+            "vecino",
+            "territorio",
+            "area",
+            "tipo_atencion",
+            "sub_atencion",
+            "responsable",
         )
-        .annotate(n_evidencias=Count("evidencias", distinct=True))
+        .annotate(
+            n_evidencias=Count("evidencias", distinct=True),
+            n_comentarios=Count("comentarios", distinct=True),
+        )
         .order_by("-fecha", "-id_actividad")
     )
     serializer_class = ActividadSerializer
+    pagination_class = PaginacionMantenedor  # acepta page_size (hasta 100)
     filterset_class = ActividadFiltro
-    search_fields = ["codigo", "descripcion", "vecino__rut", "vecino__nombres", "vecino__apellidos"]
-    ordering_fields = ["fecha", "fecha_registro", "codigo"]
+    search_fields = [
+        "codigo",
+        "descripcion",
+        "accion",
+        "vecino__rut",
+        "vecino__nombres",
+        "vecino__apellidos",
+        "funcionario__nombre",
+        "responsable__nombre",
+        "item__nombre",
+    ]
+    ordering_fields = [
+        "fecha",
+        "fecha_registro",
+        "codigo",
+        "estado",
+        "prioridad",
+        "fecha_compromiso",
+        "funcionario__nombre",
+        "item__nombre",
+    ]
     http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
     def get_queryset(self):
@@ -202,14 +271,20 @@ class ActividadViewSet(MantenedorViewSet):
             super(MantenedorViewSet, self).get_queryset(), user, "funcionario__delegacion_id"
         )
         if rol_de_usuario(user) == Rol.FUNCIONARIO:
-            return queryset.filter(funcionario_id=user.funcionario_id)  # solo lo propio
+            # Lo propio y lo que le asignaron como responsable (HU02).
+            return queryset.filter(
+                Q(funcionario_id=user.funcionario_id) | Q(responsable_id=user.funcionario_id)
+            )
         return queryset
 
     def handle_exception(self, exc):
         return super().handle_exception(actividad_conflicto(exc))
 
     def get_object(self):
-        if self.action in ("retrieve", "historial"):
+        lectura = self.action in ("retrieve", "historial", "historial_seguimiento") or (
+            self.action in ("comentarios", "opciones_seguimiento") and self.request.method == "GET"
+        )
+        if lectura:
             return super().get_object()  # lectura: fuera de alcance = 404
         actividad = get_object_or_404(
             Actividad.objects.select_related("funcionario"), pk=self.kwargs["pk"]
@@ -276,6 +351,224 @@ class ActividadViewSet(MantenedorViewSet):
             HistorialVerificacionSerializer(
                 actividad.historial_verificacion.select_related("usuario"), many=True
             ).data
+        )
+
+    # --- Seguimiento (Épica 2, HU02 a HU08) -------------------------------------------
+
+    def _respuesta(self, actividad, codigo=status.HTTP_200_OK):
+        """Devuelve la actividad ya actualizada (con sus anotaciones y campos calculados)."""
+        actividad = self.get_queryset().get(pk=actividad.pk)
+        return Response(self.get_serializer(actividad).data, status=codigo)
+
+    def _auditar(self, evento, actividad, anterior):
+        auditoria.registrar(
+            self.request.user,
+            evento,
+            actividad,
+            anterior=anterior,
+            nuevo=auditoria.foto(actividad),
+        )
+
+    @action(detail=True, methods=["post"], permission_classes=[PuedeSeguimiento])
+    def asignar(self, request, pk=None):
+        """HU02: {"area", "prioridad", "responsable"?}. Solo Administrador o Delegado."""
+        actividad = self.get_object()
+        seguimiento.exigir_gestor(request.user, actividad)
+        seguimiento.exigir_abierta(actividad)
+        datos = seguimiento.AsignarSerializer(data=request.data, context={"actividad": actividad})
+        datos.is_valid(raise_exception=True)
+        with transaction.atomic():
+            actividad = Actividad.objects.select_for_update().get(pk=actividad.pk)
+            seguimiento.exigir_abierta(actividad)
+            anterior = auditoria.foto(actividad)
+            seguimiento.aplicar(
+                actividad,
+                area=datos.validated_data["area"],
+                prioridad=datos.validated_data["prioridad"],
+                responsable=datos.validated_data.get("responsable"),
+            )
+            self._auditar("asignar", actividad, anterior)
+        return self._respuesta(actividad)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="cambiar-estado",
+        permission_classes=[PuedeSeguimiento],
+    )
+    def cambiar_estado(self, request, pk=None):
+        """HU03 (+ HU05): {"estado", "motivo_atraso"?}. Si está vencida el motivo es obligatorio."""
+        actividad = self.get_object()
+        seguimiento.exigir_participante(request.user, actividad)
+        seguimiento.exigir_abierta(actividad)
+        ahora = timezone.now()
+        with transaction.atomic():
+            actividad = Actividad.objects.select_for_update().get(pk=actividad.pk)
+            seguimiento.exigir_abierta(actividad)
+            datos = seguimiento.CambiarEstadoSerializer(
+                data=request.data, context={"actividad": actividad}
+            )
+            datos.is_valid(raise_exception=True)
+            nuevo = datos.validated_data["estado"]
+            motivo = datos.validated_data.get("motivo_atraso")
+            anterior = auditoria.foto(actividad)
+            previo = actividad.estado
+            campos = {"estado": nuevo, "fecha_estado": ahora, "usuario_cambio": request.user}
+            if motivo:
+                seguimiento.registrar_cambio(
+                    request.user, actividad, "motivo_atraso", actividad.motivo_atraso, motivo, ahora
+                )
+                campos["motivo_atraso"] = motivo
+            seguimiento.registrar_cambio(request.user, actividad, "estado", previo, nuevo, ahora)
+            seguimiento.aplicar(actividad, **campos)
+            self._auditar("cambiar_estado", actividad, anterior)
+        return self._respuesta(actividad)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="fecha-compromiso",
+        permission_classes=[PuedeSeguimiento],
+    )
+    def fecha_compromiso(self, request, pk=None):
+        """HU06 (+ HU05): {"fecha_compromiso", "motivo_atraso"?}; cada cambio queda en el historial."""
+        actividad = self.get_object()
+        seguimiento.exigir_participante(request.user, actividad)
+        seguimiento.exigir_abierta(actividad)
+        ahora = timezone.now()
+        with transaction.atomic():
+            actividad = Actividad.objects.select_for_update().get(pk=actividad.pk)
+            seguimiento.exigir_abierta(actividad)
+            datos = seguimiento.FechaCompromisoSerializer(
+                data=request.data, context={"actividad": actividad}
+            )
+            datos.is_valid(raise_exception=True)
+            nueva = datos.validated_data["fecha_compromiso"]
+            motivo = datos.validated_data.get("motivo_atraso")
+            anterior = auditoria.foto(actividad)
+            campos = {"fecha_compromiso": nueva}
+            if motivo:
+                seguimiento.registrar_cambio(
+                    request.user, actividad, "motivo_atraso", actividad.motivo_atraso, motivo, ahora
+                )
+                campos["motivo_atraso"] = motivo
+            seguimiento.registrar_cambio(
+                request.user,
+                actividad,
+                "fecha_compromiso",
+                actividad.fecha_compromiso,
+                nueva.isoformat(),
+                ahora,
+            )
+            seguimiento.aplicar(actividad, **campos)
+            self._auditar("fecha_compromiso", actividad, anterior)
+        return self._respuesta(actividad)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="motivo-atraso",
+        permission_classes=[PuedeSeguimiento],
+    )
+    def motivo_atraso(self, request, pk=None):
+        """HU05: registrar o corregir el motivo de una actividad vencida."""
+        actividad = self.get_object()
+        seguimiento.exigir_participante(request.user, actividad)
+        verificacion.validar_modificable(actividad)
+        datos = seguimiento.MotivoAtrasoSerializer(
+            data=request.data, context={"actividad": actividad}
+        )
+        datos.is_valid(raise_exception=True)
+        motivo = datos.validated_data["motivo_atraso"]
+        with transaction.atomic():
+            actividad = Actividad.objects.select_for_update().get(pk=actividad.pk)
+            verificacion.validar_modificable(actividad)
+            anterior = auditoria.foto(actividad)
+            seguimiento.registrar_cambio(
+                request.user, actividad, "motivo_atraso", actividad.motivo_atraso, motivo
+            )
+            seguimiento.aplicar(actividad, motivo_atraso=motivo)
+            self._auditar("motivo_atraso", actividad, anterior)
+        return self._respuesta(actividad)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="historial-seguimiento",
+        permission_classes=[PuedeSeguimiento],
+        pagination_class=None,
+    )
+    def historial_seguimiento(self, request, pk=None):
+        """HU03, HU05 y HU06: cambios de estado, de fecha de compromiso y de motivo."""
+        actividad = self.get_object()
+        filas = actividad.historial_seguimiento.select_related("usuario")
+        return Response(seguimiento.HistorialSeguimientoSerializer(filas, many=True).data)
+
+    @action(
+        detail=True,
+        methods=["get", "post"],
+        permission_classes=[PuedeSeguimiento],
+        pagination_class=None,
+    )
+    def comentarios(self, request, pk=None):
+        """HU08: GET lista, POST agrega {"texto"}. Los comentarios no se editan ni se borran."""
+        actividad = self.get_object()
+        if request.method == "GET":
+            filas = actividad.comentarios.select_related("usuario__rol")
+            return Response(seguimiento.ComentarioSerializer(filas, many=True).data)
+        seguimiento.exigir_participante(request.user, actividad)
+        datos = seguimiento.ComentarioSerializer(data=request.data)
+        datos.is_valid(raise_exception=True)
+        with transaction.atomic():
+            comentario = datos.save(actividad=actividad, usuario=request.user)
+            auditoria.registrar(
+                request.user, "comentar", comentario, nuevo=auditoria.foto(comentario)
+            )
+        return Response(
+            seguimiento.ComentarioSerializer(comentario).data, status=status.HTTP_201_CREATED
+        )
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="opciones-seguimiento",
+        permission_classes=[PuedeSeguimiento],
+        pagination_class=None,
+    )
+    def opciones_seguimiento(self, request, pk=None):
+        """Listas del formulario de asignación y transiciones de estado posibles."""
+        actividad = self.get_object()
+        delegacion_id = actividad.funcionario.delegacion_id
+        datos = {
+            "estados": [e for e, _ in Actividad.ESTADOS],
+            "transiciones": {e: sorted(sig) for e, sig in seguimiento.TRANSICIONES.items()},
+            "prioridades": [{"id": v, "nombre": t} for v, t in Actividad.PRIORIDADES],
+            "areas": [],
+            "responsables": [],
+        }
+        if seguimiento.es_gestor(request.user, actividad):
+            datos["areas"] = [
+                {"id": a.pk, "nombre": a.get_nombre_display()}
+                for a in Area.objects.filter(delegacion_id=delegacion_id, estado="activa")
+            ]
+            datos["responsables"] = [
+                {"id": f.pk, "nombre": f.nombre, "area": f.cargo.area_id}
+                for f in Funcionario.objects.filter(
+                    delegacion_id=delegacion_id, estado=Funcionario.ACTIVO
+                ).select_related("cargo")
+            ]
+        return Response(datos)
+
+    @action(detail=False, methods=["get"], pagination_class=None)
+    def resumen(self, request):
+        """Cifras del encabezado: total, por estado y cuántas están vencidas (HU07)."""
+        base = self.get_queryset().order_by()
+        return Response(
+            {
+                "total": base.count(),
+                "por_estado": {e: base.filter(estado=e).count() for e, _ in Actividad.ESTADOS},
+                "vencidas": base.filter(vencidas_q()).count(),
+            }
         )
 
     @action(detail=False, methods=["get"])
