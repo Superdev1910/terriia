@@ -8,4 +8,5 @@ urlpatterns = [
     path("registrar/", pantallas.registrar_actividad, name="atenciones_registrar"),
     path("verificacion/", pantallas.verificacion, name="atenciones_verificacion"),
     path("mis-registros/", pantallas.mis_registros, name="atenciones_mis_registros"),
+    path("seguimiento/", pantallas.seguimiento, name="atenciones_seguimiento"),
 ]

@@ -1,0 +1,86 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Seguimiento de actividades{% endblock %}
+{% block contenido %}
+<link rel="stylesheet" href="{% static 'atenciones/css/actividad.css' %}?v=20261121-2">
+<link rel="stylesheet" href="{% static 'atenciones/css/seguimiento.css' %}?v=20261124-1">
+<div class="encabezado-pagina">
+  <div>
+    <h1>Seguimiento de actividades</h1>
+    <p class="subtitulo">Asigne, cambie el estado, fije la fecha de compromiso y comente. Las vencidas se resaltan en rojo. Para ingresar una nueva use «Registrar actividad».</p>
+  </div>
+  <div class="acciones-pagina">
+    <button class="btn btn-borde" id="btnExcel" type="button"><i class="bi bi-file-earmark-excel"></i> Exportar a Excel</button>
+    <a class="btn btn-primario" href="{% url 'atenciones_registrar' %}"><i class="bi bi-plus-lg"></i> Registrar actividad</a>
+  </div>
+</div>
+
+<ul class="resumen-estados" id="resumen" aria-label="Resumen de actividades" aria-live="polite"></ul>
+
+<section class="panel" aria-label="Listado de actividades">
+  <form class="filtros" id="filtros" role="search" onsubmit="return false">
+    <label class="campo-buscar">
+      <span class="sr">Buscar</span>
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input type="search" id="buscar" placeholder="Código, descripción, vecino, ítem…" autocomplete="off">
+    </label>
+    <div class="filtros-extra">
+      <select id="filtroEstado" aria-label="Filtrar por estado">
+        <option value="">Todos los estados</option>
+        <option>Ingresado</option><option>Pendiente</option><option>En proceso</option><option>Realizado</option>
+      </select>
+      <select id="filtroPrioridad" aria-label="Filtrar por prioridad">
+        <option value="">Todas las prioridades</option>
+        <option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option>
+      </select>
+      <select id="filtroVencida" aria-label="Filtrar por vencimiento">
+        <option value="">Vencidas y al día</option>
+        <option value="true">Solo vencidas</option>
+        <option value="false">Solo al día</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-texto" id="btnLimpiar"><i class="bi bi-x-circle"></i> Limpiar</button>
+  </form>
+
+  <div class="tabla-scroll">
+    <table class="tabla compacta" id="tabla">
+      <caption class="sr" id="capTabla">Listado de actividades</caption>
+      <thead><tr id="cabeceraTabla"></tr></thead>
+      <tbody id="cuerpoTabla"></tbody>
+    </table>
+  </div>
+
+  <div id="estado" class="estado" role="status" aria-live="polite"></div>
+
+  <div class="pie-tabla">
+    <span id="total" class="total"></span>
+    <label class="tam-pagina">Filas por página
+      <select id="tamPagina">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+      </select>
+    </label>
+    <nav class="paginador" id="paginador" aria-label="Paginación"></nav>
+  </div>
+</section>
+
+<!-- Detalle y seguimiento de una actividad -->
+<div class="panel-fondo" id="panelFondo" hidden>
+  <aside class="panel-lateral panel-ancho" id="panelDetalle" role="dialog" aria-modal="true" aria-labelledby="panelTitulo">
+    <div class="modal-cab">
+      <h2 id="panelTitulo">Actividad</h2>
+      <button class="btn-cerrar" id="panelCerrar" type="button" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="panel-cuerpo" id="panelCuerpo"></div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{{ rol_codigo|json_script:"rolCodigo" }}
+{{ mi_funcionario|json_script:"miFuncionario" }}
+<script src="{% static 'atenciones/js/actividad_comun.js' %}?v=20261121-2"></script>
+<script src="{% static 'atenciones/js/actividad_seguimiento.js' %}?v=20261124-1"></script>
+{% endblock %}

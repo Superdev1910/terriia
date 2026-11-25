@@ -219,7 +219,12 @@ class PantallasPorRolTests(EscenarioRolesMixin, APITestCase):
         # SCRUM-62: además de su perfil, el funcionario registra y consulta sus actividades.
         self.assertEqual(
             self.nombres_menu(r),
-            {"personas_mi_perfil", "atenciones_registrar", "atenciones_mis_registros"},
+            {
+                "personas_mi_perfil",
+                "atenciones_registrar",
+                "atenciones_mis_registros",
+                "atenciones_seguimiento",
+            },
         )
         for nombre in ("personas_funcionarios", "territorio_territorios", "metas_individuales"):
             r = self.client.get(reverse(nombre))
