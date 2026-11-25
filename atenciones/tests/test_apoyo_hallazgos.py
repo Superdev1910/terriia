@@ -292,3 +292,23 @@ class PantallaSinFichaTests(VerificacionBase):
         self.func_a.save()
         html = self.client.get(reverse("atenciones_registrar")).content.decode()
         self.assertNotIn("no tiene una ficha de funcionario activa", html)
+
+
+class UltimaObservacionTests(VerificacionBase):
+    """Apoyo U1: el autor ve la observación del verificador; quien está fuera de alcance, no."""
+
+    def test_autor_recibe_la_observacion_y_otra_delegacion_no(self):
+        url = f"{URL}{self.actividad.pk}/"
+        self.client.force_authenticate(self.user_a)
+        self.assertEqual(self.client.get(url).data["ultima_observacion"], "")
+        self.verificar(self.delegado_a, "antecedentes", "Falta el acta")
+        self.client.force_authenticate(self.user_a)
+        self.assertEqual(self.client.get(url).data["ultima_observacion"], "Falta el acta")
+        listado = self.client.get(URL).data["results"][0]
+        self.assertEqual(listado["ultima_observacion"], "Falta el acta")
+        self.client.force_authenticate(self.user_b)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.get(URL).data["count"], 0)
+        self.editar(self.user_a, descripcion="Con acta")  # vuelve a pendiente: ya no se muestra
+        self.client.force_authenticate(self.user_a)
+        self.assertEqual(self.client.get(url).data["ultima_observacion"], "")

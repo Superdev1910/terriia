@@ -48,6 +48,7 @@ MENU_SECCIONES = [
         [
             ("atenciones_registrar", "Registrar actividad", "bi-journal-plus"),
             ("atenciones_mis_registros", "Mis registros", "bi-journal-text"),
+            ("atenciones_seguimiento", "Seguimiento", "bi-clipboard-check"),
             ("atenciones_verificacion", "Verificación", "bi-patch-check"),
         ],
     ),
@@ -60,7 +61,11 @@ MENU_SECCIONES = [
     ),
 ]
 
-PAGINAS_ACTIVIDADES = {"atenciones_registrar", "atenciones_mis_registros"}  # SCRUM-62
+PAGINAS_ACTIVIDADES = {  # SCRUM-62 y seguimiento (Épica 2)
+    "atenciones_registrar",
+    "atenciones_mis_registros",
+    "atenciones_seguimiento",
+}
 PAGINAS_POR_ROL = {
     Rol.ENCARGADO_AREA: {*PAGINAS_ACTIVIDADES, "atenciones_verificacion"},
     Rol.JEFE_DELEGACIONES: {"atenciones_verificacion"},

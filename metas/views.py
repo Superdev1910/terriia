@@ -2,11 +2,11 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
-from rest_framework import status
+from rest_framework import status, views
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from core import auditoria
-from core.views import MantenedorViewSet
 from core.permissions import IsAdministradorODelegado, IsAdministradorODelegadoLectura
 from .models import (
     Item,
@@ -16,14 +16,19 @@ from .models import (
     RecalibracionMeta,
     FelicitacionReclamo,
 )
+from core.views import MantenedorViewSet
+from organizacion.models import Delegacion
+from personas.models import Funcionario
+from .models import Item, MetaDelegacion, MetaIndividual, Periodo, RecalibracionMeta
 from .serializers import (
     ItemSerializer,
-    PeriodoSerializer,
     MetaDelegacionSerializer,
     MetaIndividualSerializer,
+    PeriodoSerializer,
     RecalibracionMetaSerializer,
     FelicitacionReclamoSerializer,
 )
+from .services import CalculoMetasService
 
 SIN_BORRAR = ["get", "post", "put", "patch", "head", "options"]
 
@@ -102,10 +107,15 @@ class MetaIndividualViewSet(MantenedorViewSet):
             recalibracion = serializer.save()
             meta.refresh_from_db()
             auditoria.registrar(
-                request.user, "recalibrar", meta, anterior=anterior, nuevo=auditoria.foto(meta)
+                request.user,
+                "recalibrar",
+                meta,
+                anterior=anterior,
+                nuevo=auditoria.foto(meta),
             )
         return Response(
-            RecalibracionMetaSerializer(recalibracion).data, status=status.HTTP_201_CREATED
+            RecalibracionMetaSerializer(recalibracion).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -132,3 +142,79 @@ class FelicitacionReclamoViewSet(MantenedorViewSet):
         "fecha": ["gte", "lte"],
     }
     http_method_names = ["get", "post", "head", "options"]
+class DashboardFuncionarioView(views.APIView):
+    """
+    Endpoint para obtener el semáforo y cumplimiento individual de un funcionario.
+    Ruta: GET /api/metas/dashboard/funcionario/<int:funcionario_id>/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, funcionario_id):
+        periodo_id = request.query_params.get("periodo")
+        if not periodo_id:
+            periodo_vigente = Periodo.objects.filter(estado="vigente").first()
+            if not periodo_vigente:
+                return Response(
+                    {"error": "No hay un período vigente activo."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            periodo_id = periodo_vigente.pk
+
+        resultado = CalculoMetasService.calcular_cumplimiento_funcionario(
+            funcionario_id=funcionario_id, periodo_id=periodo_id
+        )
+        return Response(resultado, status=status.HTTP_200_OK)
+
+
+class DashboardDelegacionView(views.APIView):
+    """Endpoint consolidado por delegación (HU13 / HU22)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, delegacion_id):
+        periodo_id = request.query_params.get("periodo")
+        periodo = (
+            Periodo.objects.get(pk=periodo_id)
+            if periodo_id
+            else Periodo.objects.filter(estado="vigente").first()
+        )
+
+        if not periodo:
+            return Response(
+                {"error": "No hay un período vigente activo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        funcionarios = Funcionario.objects.filter(delegacion_id=delegacion_id, estado="activo")
+        resumen_funcionarios = []
+        suma_cumplimiento = Decimal("0.00")
+
+        for func in funcionarios:
+            datos = CalculoMetasService.calcular_cumplimiento_funcionario(
+                funcionario_id=func.pk, periodo_id=periodo.pk
+            )
+            resumen_funcionarios.append(
+                {
+                    "funcionario_id": func.pk,
+                    "nombre": getattr(func, "nombre", getattr(func, "nombre_completo", "")),
+                    "cumplimiento_computable": datos["cumplimiento_computable"],
+                    "color_semaforo": datos["color_semaforo"],
+                }
+            )
+            suma_cumplimiento += Decimal(str(datos["cumplimiento_computable"]))
+
+        promedio_delegacion = (
+            (suma_cumplimiento / len(funcionarios)) if funcionarios.exists() else Decimal("0.00")
+        )
+
+        return Response(
+            {
+                "delegacion_id": delegacion_id,
+                "periodo_id": periodo.pk,
+                "promedio_cumplimiento_delegacion": round(float(promedio_delegacion), 2),
+                "total_funcionarios": len(funcionarios),
+                "funcionarios": resumen_funcionarios,
+            },
+            status=status.HTTP_200_OK,
+        )

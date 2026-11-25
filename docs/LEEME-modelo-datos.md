@@ -54,3 +54,10 @@ evidencia) **queda sin uso**: la verificación se hace sobre la actividad, no so
 **`evidencia.estado_revision` está reservado.** Viene del SQL v2.4 (`pendiente`/`revisado`) y hoy no tiene flujo: siempre queda en
 `pendiente`. No se borra por si el cliente define una revisión por evidencia; no la uses en reglas de negocio mientras tanto.
 
+
+## Seguimiento de actividades (Épicas 1 y 2, Brian)
+
+Sin versión nueva del SQL: `actividad_historial` y `comentario` ya estaban en el v2.4 y se crean con la migración
+`atenciones/0006_seguimiento_comentarios` (mismos nombres de tabla y de campo). La tabla `actividad` no cambia: `estado`, `fecha_estado`,
+`fecha_compromiso`, `motivo_atraso`, `responsable_id`, `id_area` y `prioridad` existen desde SCRUM-62. Detalle en
+`docs/LEEME-seguimiento-actividades.md`.

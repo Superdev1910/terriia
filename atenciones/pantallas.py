@@ -8,7 +8,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from core.models import Rol
-from core.permissions import solo_roles
+from core.permissions import rol_de_usuario, solo_roles
 from organizacion.models import Area
 from organizacion.pantallas import contexto_usuario, solo_administrador
 from territorio.pantallas import MENU_SECCIONES
@@ -73,3 +73,23 @@ def verificacion(request):
         "atenciones/actividad_verificacion.html",
         contexto_usuario(request, "atenciones_verificacion"),
     )
+
+
+# --- Seguimiento de actividades (Épica 2) --------------------------------------------------
+
+CODIGO_ROL = {
+    Rol.ADMINISTRADOR: "admin",
+    Rol.DELEGADO_TERRITORIAL: "delegado",
+    Rol.ENCARGADO_AREA: "encargado",
+    Rol.FUNCIONARIO: "funcionario",
+}
+
+
+@solo_quienes_registran
+@ensure_csrf_cookie
+def seguimiento(request):
+    datos = contexto_usuario(request, "atenciones_seguimiento")
+    # Solo para decidir qué botones se muestran; el servidor valida cada acción igualmente.
+    datos["rol_codigo"] = CODIGO_ROL[rol_de_usuario(request.user)]
+    datos["mi_funcionario"] = request.user.funcionario_id
+    return render(request, "atenciones/actividad_seguimiento.html", datos)

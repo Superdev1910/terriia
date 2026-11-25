@@ -123,7 +123,18 @@ class ActividadSerializer(serializers.ModelSerializer):
     id_hito = serializers.IntegerField(source="hito_id", required=False, allow_null=True)
     fecha = serializers.DateTimeField(required=False)
     n_evidencias = serializers.IntegerField(read_only=True, default=0)
+    n_comentarios = serializers.IntegerField(read_only=True, default=0)
     puede_editar = serializers.SerializerMethodField()
+    # Seguimiento (Épica 2): los datos los cambian las acciones de seguimiento, no el alta.
+    responsable_nombre = serializers.CharField(
+        source="responsable.nombre", read_only=True, default=None
+    )
+    delegacion_codigo = serializers.CharField(
+        source="funcionario.delegacion.codigo", read_only=True, default=None
+    )
+    vencida = serializers.BooleanField(source="esta_vencida", read_only=True)  # HU07
+    dias_atraso = serializers.IntegerField(read_only=True)
+    ultima_observacion = serializers.SerializerMethodField()
 
     class Meta:
         model = Actividad
@@ -159,21 +170,42 @@ class ActividadSerializer(serializers.ModelSerializer):
             "id_hito",
             "prioridad",
             "estado",
+            "fecha_estado",
+            "responsable",
+            "responsable_nombre",
+            "fecha_compromiso",
+            "motivo_atraso",
+            "vencida",
+            "dias_atraso",
+            "delegacion_codigo",
             "estado_verificacion",
             "pondera",
             "motivo_no_pondera",
             "n_evidencias",
+            "n_comentarios",
             "puede_editar",
+            "ultima_observacion",
         ]
         read_only_fields = [
             "codigo",
             "funcionario",
             "fecha_registro",
             "estado",
+            "fecha_estado",
+            "responsable",
+            "fecha_compromiso",
+            "motivo_atraso",
             "estado_verificacion",
             "pondera",
             "motivo_no_pondera",
         ]
+
+    def get_ultima_observacion(self, obj):
+        """Lo que escribió quien verificó al pedir antecedentes o rechazar (si corresponde)."""
+        if obj.estado_verificacion not in verificacion.EXIGEN_OBSERVACION:
+            return ""
+        ultimo = obj.historial_verificacion.filter(estado_nuevo=obj.estado_verificacion).last()
+        return ultimo.observacion if ultimo else ""
 
     def get_puede_editar(self, obj):
         """Solo el autor y solo mientras esté pendiente o con antecedentes pedidos."""
