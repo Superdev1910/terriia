@@ -10,6 +10,56 @@
   const detalle = document.getElementById('detalleDelegaciones');
   let opcionesCargadas = false;
 
+  const COLOR_SEMAFORO = { verde: '#176b35', ambar: '#8a5700', rojo: '#a00000' };
+  const ROJO_INST = '#B71C1C';
+  const graficos = {};
+
+  function dibujar(id, config) {
+    if (graficos[id]) graficos[id].destroy();
+    graficos[id] = new Chart(document.getElementById(id), config);
+  }
+
+  function renderGraficos(r) {
+    const panel = document.getElementById('graficosEjecutivo');
+    if (typeof Chart === 'undefined') { panel.hidden = true; return; }
+    panel.hidden = false;
+    const base = { responsive: true, maintainAspectRatio: false };
+    const dels = r.delegaciones;
+    dibujar('graficoCumplimiento', {
+      type: 'bar',
+      data: {
+        labels: dels.map((d) => d.codigo),
+        datasets: [
+          { label: 'Cumplimiento (%)', data: dels.map((d) => Number(d.cumplimiento_pct)),
+            backgroundColor: dels.map((d) => COLOR_SEMAFORO[d.color_semaforo] || ROJO_INST), order: 2 },
+          { type: 'line', label: 'Esperado al día (%)', order: 1,
+            data: dels.map(() => Number(r.porcentaje_esperado)),
+            borderColor: '#333', borderDash: [6, 4], pointRadius: 0, fill: false },
+        ],
+      },
+      options: { ...base, scales: { y: { beginAtZero: true, ticks: { callback: (v) => `${v}%` } } } },
+    });
+    const estados = r.volumen_global.por_estado;
+    dibujar('graficoEstados', {
+      type: 'doughnut',
+      data: {
+        labels: estados.map((e) => e.etiqueta),
+        datasets: [{ data: estados.map((e) => Number(e.cantidad)),
+          backgroundColor: ['#B71C1C', '#8a5700', '#176b35', '#555', '#999', '#d98c8c'] }],
+      },
+      options: { ...base, plugins: { legend: { position: 'bottom' } } },
+    });
+    const areas = r.volumen_global.por_area.filter((a) => a.clave || a.cantidad);
+    dibujar('graficoAreas', {
+      type: 'bar',
+      data: {
+        labels: areas.map((a) => a.etiqueta),
+        datasets: [{ label: 'Solicitudes', data: areas.map((a) => Number(a.cantidad)), backgroundColor: ROJO_INST }],
+      },
+      options: { ...base, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+    });
+  }
+
   function esc(valor) {
     return String(valor ?? '').replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -110,6 +160,7 @@
       if (!opcionesCargadas) llenarFiltro(resultado.delegaciones);
       resultado.delegaciones.forEach(mostrarDelegacion);
       mostrarDetalle(resultado);
+      renderGraficos(resultado);
       mensaje.textContent = resultado.delegaciones.length
         ? ''
         : 'No hay delegaciones para mostrar.';

@@ -12,3 +12,10 @@
 .cump-semaforo.verde { color: #176b35; }
 .cump-semaforo.ambar { color: #8a5700; }
 .cump-semaforo.rojo { color: #a00000; }
+
+.grafico-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
+.grafico-ancho { grid-column: 1 / -1; }
+.grafico-tarjeta { border: 1px solid #ddd; border-radius: 6px; padding: .75rem 1rem; background: #fff; min-width: 0; margin-bottom: 1rem; }
+.grafico-rejilla .grafico-tarjeta { margin-bottom: 0; }
+.grafico-tarjeta h3 { margin: 0 0 .5rem; font-size: 1rem; color: #7f1414; }
+.grafico-caja { position: relative; height: 260px; }

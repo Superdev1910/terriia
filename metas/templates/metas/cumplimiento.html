@@ -2,7 +2,7 @@
 {% load static %}
 {% block titulo %}{% if config_cumplimiento.modo == "propio" %}Mi cumplimiento{% else %}Cumplimiento por delegación{% endif %}{% endblock %}
 {% block contenido %}
-<link rel="stylesheet" href="{% static 'metas/css/cumplimiento.css' %}">
+<link rel="stylesheet" href="{% static 'metas/css/cumplimiento.css' %}?v=20261127-2">
 <div class="encabezado-pagina">
   <div>
     {% if config_cumplimiento.modo == "propio" %}
@@ -37,6 +37,10 @@
     <h2 id="tituloResumen">Funcionarios</h2>
     <span id="promedioDelegacion" class="cump-promedio"></span>
   </div>
+  <div class="grafico-tarjeta" id="tarjetaGrafico">
+    <h3>Cumplimiento computable por funcionario vs. esperado</h3>
+    <div class="grafico-caja"><canvas id="graficoFuncionarios" role="img" aria-label="Gráfico de barras del cumplimiento computable de cada funcionario con línea del porcentaje esperado"></canvas></div>
+  </div>
   <div class="tabla-scroll">
     <table class="tabla">
       <caption class="sr">Cumplimiento de los funcionarios de la delegación</caption>
@@ -68,5 +72,6 @@
 {% endblock %}
 {% block scripts %}
 {{ config_cumplimiento|json_script:"configCumplimiento" }}
-<script src="{% static 'metas/js/cumplimiento.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{% static 'metas/js/cumplimiento.js' %}?v=20261127-2"></script>
 {% endblock %}
