@@ -1,7 +1,8 @@
 from decimal import Decimal
 from django.db import transaction
-from django.db.models import DecimalField, Sum, Value
+from django.db.models import Count, DecimalField, Max, Sum, Value
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 from rest_framework import status, views
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -24,7 +25,8 @@ from .models import (
     FelicitacionReclamo,
 )
 from core.views import MantenedorViewSet
-from organizacion.models import Delegacion
+from atenciones.models import Actividad
+from organizacion.models import Area, Delegacion
 from personas.models import Funcionario
 from .models import Item, MetaDelegacion, MetaIndividual, Periodo, RecalibracionMeta
 from .serializers import (
@@ -35,6 +37,7 @@ from .serializers import (
     RecalibracionMetaSerializer,
     FelicitacionReclamoSerializer,
 )
+from .cumplimiento import _limites_del_periodo
 from .services import CalculoMetasService
 
 SIN_BORRAR = ["get", "post", "put", "patch", "head", "options"]
@@ -260,6 +263,69 @@ class DashboardDelegacionView(views.APIView):
         )
 
 
+def _delegacion_del_dashboard(request):
+    """Delegación pedida en ?delegacion= (400 si no es numérica, 404 si no existe) o None."""
+    valor = request.query_params.get("delegacion")
+    if not valor:
+        return None
+    if not valor.isascii() or not valor.isdecimal():
+        raise ValidationError({"delegacion": "Debe ser un número."})
+    try:
+        return Delegacion.objects.get(pk=int(valor))
+    except Delegacion.DoesNotExist:
+        raise NotFound("La delegación no existe.")
+
+
+def _serie(etiquetas, conteos):
+    return [
+        {"clave": clave, "etiqueta": etiqueta, "cantidad": conteos.get(clave, 0)}
+        for clave, etiqueta in etiquetas
+    ]
+
+
+def _indicadores_actividad(total, ultimo, periodo, hoy):
+    """Fecha y días desde el último ingreso, total y promedio diario dentro del período."""
+    dias_periodo = max((min(hoy, periodo.fecha_termino) - periodo.fecha_inicio).days + 1, 1)
+    return {
+        "total_ingresos": total,
+        "fecha_ultimo_ingreso": ultimo,
+        "dias_desde_ultimo_ingreso": max((hoy - ultimo).days, 0) if ultimo else None,
+        "promedio_ingresos_diarios": round(total / dias_periodo, 2),
+    }
+
+
+def _volumenes_por_delegacion(periodo, delegacion_ids):
+    """Solicitudes (Actividad) del período por estado y área, solo agregados (3 consultas)."""
+    inicio, fin = _limites_del_periodo(periodo)
+    base = Actividad.objects.filter(
+        fecha__gte=inicio, fecha__lt=fin, funcionario__delegacion_id__in=delegacion_ids
+    ).order_by()
+    por_estado, por_area, totales = {}, {}, {}
+    for fila in base.values("funcionario__delegacion_id", "estado").annotate(n=Count("pk")):
+        por_estado.setdefault(fila["funcionario__delegacion_id"], {})[fila["estado"]] = fila["n"]
+    for fila in base.values("funcionario__delegacion_id", "area__nombre").annotate(n=Count("pk")):
+        clave = fila["area__nombre"] or ""
+        por_area.setdefault(fila["funcionario__delegacion_id"], {})[clave] = fila["n"]
+    for fila in base.values("funcionario__delegacion_id").annotate(
+        n=Count("pk"), ultimo=Max("fecha")
+    ):
+        ultimo = fila["ultimo"]
+        totales[fila["funcionario__delegacion_id"]] = (
+            fila["n"],
+            timezone.localtime(ultimo).date() if ultimo else None,
+        )
+    return por_estado, por_area, totales
+
+
+def _armar_volumen(por_estado, por_area):
+    areas = Area.NOMBRES + [("", "Sin área")]
+    return {
+        "total": sum(por_estado.values()),
+        "por_estado": _serie(Actividad.ESTADOS, por_estado),
+        "por_area": _serie(areas, por_area),
+    }
+
+
 class DashboardEjecutivoView(views.APIView):
     """Dashboard ejecutivo agregado, sin registros individuales."""
 
@@ -270,10 +336,19 @@ class DashboardEjecutivoView(views.APIView):
             raise PermissionDenied("No tiene permiso para ver el dashboard ejecutivo.")
 
         periodo = _periodo_del_dashboard(request)
-        delegaciones = list(Delegacion.objects.order_by("codigo"))
-        funcionarios = Funcionario.objects.filter(estado=Funcionario.ACTIVO).order_by(
-            "delegacion_id", "pk"
-        )
+        delegacion_filtrada = _delegacion_del_dashboard(request)
+        if delegacion_filtrada:
+            delegaciones = [delegacion_filtrada]
+        else:
+            delegaciones = list(Delegacion.objects.order_by("codigo"))
+        ids_delegaciones = [delegacion.pk for delegacion in delegaciones]
+        funcionarios = Funcionario.objects.filter(
+            estado=Funcionario.ACTIVO, delegacion_id__in=ids_delegaciones
+        ).order_by("delegacion_id", "pk")
+        hoy = timezone.localdate()
+        vol_estado, vol_area, vol_total = _volumenes_por_delegacion(periodo, ids_delegaciones)
+        global_estado, global_area = {}, {}
+        total_global_ingresos, ultimo_global = 0, None
         sumas = {delegacion.pk: Decimal("0.00") for delegacion in delegaciones}
         cantidades = {delegacion.pk: 0 for delegacion in delegaciones}
 
@@ -297,6 +372,14 @@ class DashboardEjecutivoView(views.APIView):
             cumplimiento = sumas[delegacion.pk] / cantidad if cantidad else Decimal("0.00")
             suma_global += sumas[delegacion.pk]
             cantidad_global += cantidad
+            for clave, n in vol_estado.get(delegacion.pk, {}).items():
+                global_estado[clave] = global_estado.get(clave, 0) + n
+            for clave, n in vol_area.get(delegacion.pk, {}).items():
+                global_area[clave] = global_area.get(clave, 0) + n
+            total_d, ultimo_d = vol_total.get(delegacion.pk, (0, None))
+            total_global_ingresos += total_d
+            if ultimo_d and (ultimo_global is None or ultimo_d > ultimo_global):
+                ultimo_global = ultimo_d
             resumen_delegaciones.append(
                 {
                     "delegacion_id": delegacion.pk,
@@ -306,6 +389,12 @@ class DashboardEjecutivoView(views.APIView):
                     "porcentaje_esperado": round(float(porcentaje_esperado), 2),
                     "color_semaforo": CalculoMetasService.calcular_color_semaforo(
                         cumplimiento, porcentaje_esperado
+                    ),
+                    "volumen": _armar_volumen(
+                        vol_estado.get(delegacion.pk, {}), vol_area.get(delegacion.pk, {})
+                    ),
+                    "indicadores_actividad": _indicadores_actividad(
+                        total_d, ultimo_d, periodo, hoy
                     ),
                 }
             )
@@ -320,6 +409,11 @@ class DashboardEjecutivoView(views.APIView):
                 },
                 "cumplimiento_global_pct": round(float(cumplimiento_global), 2),
                 "porcentaje_esperado": round(float(porcentaje_esperado), 2),
+                "delegacion_filtro": delegacion_filtrada.pk if delegacion_filtrada else None,
+                "volumen_global": _armar_volumen(global_estado, global_area),
+                "indicadores_actividad_global": _indicadores_actividad(
+                    total_global_ingresos, ultimo_global, periodo, hoy
+                ),
                 "delegaciones": resumen_delegaciones,
             },
             status=status.HTTP_200_OK,
