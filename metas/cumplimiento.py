@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 from django.utils import timezone
 
 UMBRAL_CUMPLIDA = Decimal("80")
-TOPE_CUMPLIMIENTO = Decimal("150")  # Tope computable único (150%) de todo el sistema
+TOPE_CUMPLIMIENTO = Decimal("120")  # Tope computable único (120%) de todo el sistema
 _CENTESIMAS = Decimal("0.01")
 
 

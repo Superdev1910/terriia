@@ -72,7 +72,7 @@ class CalculoMetasService:
                 }
             )
 
-        # Tope máximo computable (150%)
+        # Tope máximo computable (120%)
         cumplimiento_computable = min(cumplimiento_bruto_total, cls.TOPE_MAXIMO_COMPUTABLE)
         return items_calculados, cumplimiento_bruto_total, cumplimiento_computable
 
@@ -127,7 +127,7 @@ class CalculoMetasService:
         Calcula el avance de un funcionario para un período dado:
         - Solo considera actividades aprobadas (estado de verificación aprobada, pondera).
         - Pondera según el peso del ítem en el cargo.
-        - Aplica el tope máximo computable (150%).
+        - Aplica el tope máximo computable (120%).
         """
         if fecha_evaluacion is None:
             fecha_evaluacion = date.today()
