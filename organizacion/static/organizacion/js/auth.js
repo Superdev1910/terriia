@@ -112,6 +112,9 @@
               Administrador: '/organizacion/',
               'Delegado territorial': '/territorio/territorios/',
               Funcionario: '/personas/mi-perfil/',
+              Alcaldesa: '/metas/dashboard-ejecutivo/',
+              'Jefe de delegaciones': '/metas/cumplimiento-delegacion/',
+              'Encargado de área': '/atenciones/verificacion/',
             };
             window.location.href = login.dataset.siguiente || inicioPorRol[datos.rol] || '/';
           return;

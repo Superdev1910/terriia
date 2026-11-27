@@ -4,7 +4,9 @@ from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
 
-from .utiles import crear_admin, crear_funcionario
+from core.models import Rol
+
+from .utiles import crear_admin, crear_funcionario, crear_usuario
 
 PUBLICAS = ["pub_inicio", "pub_delegaciones", "pub_servicios", "pub_contacto"]
 ACCESO = ["pub_ingresar", "pub_recuperar"]
@@ -34,13 +36,19 @@ class SitioPublicoTests(TestCase):
         html = self.client.get(reverse("pub_inicio")).content.decode()
         self.assertIn("data-cerrar-sesion", html)
         self.assertIn(reverse("pub_cambiar_clave"), html)
-        self.assertNotIn("bi-speedometer2", html)  # el funcionario no ve el botón Panel
+        self.assertIn('href="/personas/mi-perfil/"', html)  # el Panel lleva a su perfil
 
     def test_administrador_ve_el_enlace_al_panel(self):
         self.client.force_login(crear_admin())
         html = self.client.get(reverse("pub_inicio")).content.decode()
         self.assertIn("bi-speedometer2", html)  # botón Panel
         self.assertIn('href="/organizacion/"', html)
+
+    def test_alcaldesa_ve_el_panel_hacia_su_dashboard(self):
+        self.client.force_login(crear_usuario("alcaldesa@terriia.cl", "11111111", Rol.ALCALDESA))
+        html = self.client.get(reverse("pub_inicio")).content.decode()
+        self.assertIn("bi-speedometer2", html)
+        self.assertIn('href="/metas/dashboard-ejecutivo/"', html)
 
     def test_directorio_muestra_las_delegaciones(self):
         html = self.client.get(reverse("pub_delegaciones")).content.decode()

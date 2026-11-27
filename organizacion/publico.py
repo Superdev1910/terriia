@@ -6,6 +6,7 @@
 
 from django.contrib.auth.views import redirect_to_login
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 
@@ -54,12 +55,33 @@ SERVICIOS = [
 ]
 
 
+def _panel_url(usuario):
+    """Primera pantalla de trabajo según el rol (misma lógica que auth.js)."""
+    if not usuario.is_authenticated:
+        return ""
+    destinos = {
+        Rol.ADMINISTRADOR: "org_inicio",
+        Rol.ALCALDESA: "metas_dashboard_ejecutivo",
+        Rol.JEFE_DELEGACIONES: "metas_cumplimiento_delegacion",
+        Rol.ENCARGADO_AREA: "atenciones_verificacion",
+    }
+    for rol, nombre in destinos.items():
+        if tiene_rol(usuario, rol):
+            return reverse(nombre)
+    if tiene_rol(usuario, Rol.DELEGADO_TERRITORIAL):
+        return "/territorio/territorios/"
+    if tiene_rol(usuario, Rol.FUNCIONARIO):
+        return "/personas/mi-perfil/"
+    return ""
+
+
 def _contexto(request, activa=None, extra=None):
     u = request.user
     contexto = {
         "menu_publico": MENU_PUBLICO,
         "activa": activa,
         "es_admin": tiene_rol(u, Rol.ADMINISTRADOR),
+        "panel_url": _panel_url(u),
         "nombre_usuario": (u.get_full_name() or u.email) if u.is_authenticated else "",
     }
     contexto.update(extra or {})
