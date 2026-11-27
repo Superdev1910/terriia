@@ -43,7 +43,7 @@ filtros y las filas. No se afirma que el archivo se haya abierto en Microsoft Ex
 - Se recorren todas las delegaciones registradas, incluidas las inactivas. Solo se calculan
   funcionarios con estado `activo`. Una delegación sin funcionarios activos presenta 0.00%.
 - El cálculo individual se delega a `CalculoMetasService.calcular_cumplimiento_funcionario`,
-  reutilizando actividades aprobadas que ponderan y el tope computable de 120%.
+  reutilizando actividades aprobadas que ponderan y el tope computable de 150%.
 - El porcentaje esperado es el del servicio existente: días transcurridos inclusivos divididos
   por días computables, limitado al total del período.
 - El semáforo reutiliza los umbrales existentes: verde si cumplimiento >= esperado; ámbar si
@@ -54,9 +54,9 @@ filtros y las filas. No se afirma que el archivo se haya abierto en Microsoft Ex
 - La respuesta contiene período, cumplimiento global, esperado y una fila agregada por
   delegación (id, código, nombre, promedio y semáforo). No incluye funcionarios, áreas, vecinos,
   actividades ni solicitudes individuales. La pantalla presenta los mismos agregados.
-- El proyecto conserva otra ruta de cálculo con un tope de 150% (`metas/cumplimiento.py`). HU22
-  sigue deliberadamente el servicio de 120% utilizado por los dashboards existentes; el propio
-  servicio mantiene pendiente la unificación de ambos topes.
+- El tope computable es de 150% y está unificado en una sola constante
+  (`TOPE_CUMPLIMIENTO` en `metas/cumplimiento.py`), usada tanto por el cálculo por ítem como por
+  `CalculoMetasService` y los dashboards (incluido HU22).
 
 ### Archivos técnicos
 

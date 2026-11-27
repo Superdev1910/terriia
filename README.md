@@ -133,7 +133,7 @@ Según el código actual del repositorio.
 | Usuarios y funcionarios (`personas`) | Hecho | Mantenedores con alcance por delegación y «Mis datos y metas» del funcionario. |
 | Organización (`organizacion`) | Hecho | Delegaciones (crean sus 4 áreas), áreas, cargos, sitio público e inicio. |
 | Territorio (`territorio`) | Parcial | Vecinos, territorios y juntas listos. El vecino no tiene delegación propia (se deduce de sus actividades; `TODO(Pamela)`). |
-| Metas (`metas`) | Parcial | Mantenedores, cálculos, semáforo y dashboard ejecutivo agregado por delegación. Pendiente completar aspectos restantes del módulo y resolver la unificación del tope 120/150 documentada en el servicio. |
+| Metas (`metas`) | Parcial | Mantenedores, cálculos, semáforo y dashboard ejecutivo agregado por delegación. Pendiente completar aspectos restantes del módulo. |
 | Catálogos de atención (`atenciones`) | Hecho | Tipos de atención y sub atenciones (semilla de ejemplo del área Social). |
 | Actividades y gestión social (`atenciones`) | Hecho | Ingreso, reglas de negocio, edición del autor, «Registrar actividad» y «Mis registros» con Excel. |
 | Seguimiento de actividades (`atenciones`) | Hecho (pendiente prueba en MariaDB y servidor) | Asignar a un área, estado, fecha de compromiso con historial, motivo de atraso, vencidas resaltadas y comentarios (HU02 a HU08). Pantalla «Seguimiento». |

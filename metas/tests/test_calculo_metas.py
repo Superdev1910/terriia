@@ -1,7 +1,9 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
+from atenciones.models import Actividad
 from metas.models import Item, MetaDelegacion, MetaIndividual, Periodo
 from metas.services import CalculoMetasService
 from organizacion.models import Area, Cargo, Delegacion
@@ -68,11 +70,21 @@ class CalculoMetasServiceTestCase(TestCase):
         self.assertEqual(resultado["cumplimiento_computable"], 0.00)
         self.assertEqual(resultado["color_semaforo"], "rojo")
 
-    def test_tope_maximo_computable_120_porcentaje(self):
-        """2. Valida que el cumplimiento computable nunca supere el tope reglamentario del 120%."""
+    def test_tope_maximo_computable_150_porcentaje(self):
+        """2. Valida que el cumplimiento computable se topa en 150% (bruto 200% -> 150)."""
+        for _ in range(20):  # 20 de 10 = 200% bruto
+            Actividad.objects.create(
+                funcionario=self.funcionario,
+                item=self.item,
+                tipo_registro=Actividad.ACTIVIDAD,
+                estado_verificacion=Actividad.VERIF_APROBADA,
+                pondera=True,
+                fecha=datetime(2026, 2, 15, 12, 0, tzinfo=timezone.get_current_timezone()),
+            )
         resultado = CalculoMetasService.calcular_cumplimiento_funcionario(
             funcionario_id=self.funcionario.pk,
             periodo_id=self.periodo.pk,
             fecha_evaluacion=date(2026, 3, 31),
         )
-        self.assertLessEqual(resultado["cumplimiento_computable"], 120.00)
+        self.assertGreater(resultado["cumplimiento_bruto"], 150.00)
+        self.assertEqual(resultado["cumplimiento_computable"], 150.00)
