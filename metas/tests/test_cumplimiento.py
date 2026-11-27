@@ -25,11 +25,11 @@ class ReglasDeCumplimientoTests(SimpleTestCase):
         self.assertFalse(r["cumplida"])
 
     def test_puede_superar_el_100(self):
-        self.assertEqual(calcular_cumplimiento(40, 50)["porcentaje"], Decimal("125.00"))
+        self.assertEqual(calcular_cumplimiento(40, 46)["porcentaje"], Decimal("115.00"))
 
-    def test_tope_150(self):
+    def test_tope_120(self):
         r = calcular_cumplimiento(40, 100)
-        self.assertEqual(r["porcentaje"], Decimal("150.00"))
+        self.assertEqual(r["porcentaje"], Decimal("120.00"))
         self.assertTrue(r["cumplida"])
 
     def test_sin_avance(self):
@@ -38,13 +38,13 @@ class ReglasDeCumplimientoTests(SimpleTestCase):
         self.assertFalse(r["cumplida"])
 
     def test_cumplimiento_ponderado(self):
-        # ponderador 40% × 125% de cumplimiento = 50.00
+        # ponderador 40% × 115% de cumplimiento = 46.00
         self.assertEqual(
-            calcular_cumplimiento(40, 50, ponderador=40)["ponderado"], Decimal("50.00")
+            calcular_cumplimiento(40, 46, ponderador=40)["ponderado"], Decimal("46.00")
         )
-        # el tope también limita el ponderado: 40% × 150% = 60.00
+        # el tope también limita el ponderado: 40% × 120% = 48.00
         self.assertEqual(
-            calcular_cumplimiento(40, 100, ponderador=40)["ponderado"], Decimal("60.00")
+            calcular_cumplimiento(40, 100, ponderador=40)["ponderado"], Decimal("48.00")
         )
 
     def test_sin_ponderador_no_calcula_ponderado(self):

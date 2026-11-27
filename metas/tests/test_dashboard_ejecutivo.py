@@ -295,7 +295,7 @@ class DashboardEjecutivoIntegracionTests(TestCase):
         self._actividades(self.ana, self.item_a, 2, tipo_registro=Actividad.GESTION_SOCIAL)
         self._actividades(self.ana, self.item_a, 2, fecha=datetime(2025, 12, 31, 23, 59, tzinfo=tz))
         self._actividades(self.ana, self.item_a, 2, fecha=datetime(2026, 4, 1, 0, 0, tzinfo=tz))
-        # Luis: 6 de 2 en A (300% * 0.6 = 180) queda topado en 150
+        # Luis: 6 de 2 en A (300% * 0.6 = 180) queda topado en 120
         self._actividades(self.luis, self.item_a, 6)
         # Pedro: 1 de 3 en A (33,33% * 0.6 = 20)
         self._actividades(self.pedro, self.item_a, 1)
@@ -306,10 +306,10 @@ class DashboardEjecutivoIntegracionTests(TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         por_codigo = {fila["codigo"]: fila for fila in respuesta.data["delegaciones"]}
-        self.assertEqual(por_codigo["CEN"]["cumplimiento_pct"], 117.5)  # (85 + 150) / 2
+        self.assertEqual(por_codigo["CEN"]["cumplimiento_pct"], 102.5)  # (85 + 120) / 2
         self.assertEqual(por_codigo["NOR"]["cumplimiento_pct"], 20.0)
         self.assertEqual(por_codigo["SUR"]["cumplimiento_pct"], 0.0)  # sin funcionarios
-        self.assertEqual(respuesta.data["cumplimiento_global_pct"], 85.0)  # (85 + 150 + 20) / 3
+        self.assertEqual(respuesta.data["cumplimiento_global_pct"], 75.0)  # (85 + 120 + 20) / 3
 
     def test_coincide_con_el_calculo_individual(self):
         self._escenario()

@@ -134,13 +134,13 @@ class AvanceYCumplimientoTests(TestCase):
         self.assertEqual(r["total"], Decimal("102.00"))  # 20 + 72 + 10
         self.assertTrue(r["completo"])
 
-    def test_el_tope_de_150_se_aplica_al_total(self):
+    def test_el_tope_de_120_se_aplica_al_total(self):
         self._meta(self.ana, self.visitas, "2")
         for _ in range(10):
-            self._actividad(self.ana, self.visitas)  # 500% -> tope 150% -> 60.00
+            self._actividad(self.ana, self.visitas)  # 500% -> tope 120% -> 48.00
         r = cumplimiento_funcionario(self.ana, self.periodo)
-        self.assertEqual(r["actividades"][0]["porcentaje"], Decimal("150.00"))
-        self.assertEqual(r["total"], Decimal("60.00"))
+        self.assertEqual(r["actividades"][0]["porcentaje"], Decimal("120.00"))
+        self.assertEqual(r["total"], Decimal("48.00"))
 
     def test_item_de_porcentaje_deja_el_resultado_incompleto(self):
         soluciones = self._item("Soluciones al ingreso al tubo", Item.PORCENTAJE, "30")
