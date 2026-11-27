@@ -49,6 +49,19 @@
         <small class="ayuda" id="ayudaRut">Al salir del campo se completan los datos del vecino.</small>
         <span class="error" data-error="vecino"></span>
       </div>
+      <div class="campo" id="panelVecinoNuevo" hidden style="grid-column: 1 / -1;">
+        <p><strong>Vecino no registrado:</strong> complete sus datos para registrarlo.</p>
+        <label for="vn_nombres">Nombres</label>
+        <input type="text" id="vn_nombres" maxlength="100">
+        <label for="vn_apellidos">Apellidos</label>
+        <input type="text" id="vn_apellidos" maxlength="100">
+        <label for="vn_telefono">Teléfono</label>
+        <input type="tel" id="vn_telefono" maxlength="20">
+        <label for="vn_direccion">Dirección</label>
+        <input type="text" id="vn_direccion" maxlength="255">
+        <p class="error" id="errorVecinoNuevo" role="alert"></p>
+        <button type="button" class="btn btn-borde" id="btnRegistrarVecino"><i class="bi bi-person-plus"></i> Registrar vecino</button>
+      </div>
       <div class="campo">
         <label for="contacto">Nombre de la persona atendida</label>
         <input type="text" id="contacto" maxlength="150">
@@ -106,5 +119,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'atenciones/js/actividad_registrar.js' %}?v=20261121-1"></script>
+<script src="{% static 'atenciones/js/actividad_registrar.js' %}?v=20261127-1"></script>
 {% endblock %}

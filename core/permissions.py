@@ -111,3 +111,22 @@ class IsAdministrador(BasePermission):
 
     def has_permission(self, request, view):
         return tiene_rol(request.user, Rol.ADMINISTRADOR)
+
+
+class IsOperativoCreaVecinos(BasePermission):
+    """Los roles operativos pueden registrar (POST) un vecino; el resto de las operaciones
+    sigue siendo solo del Administrador. La Alcaldesa no crea."""
+
+    message = "No tienes permiso para realizar esta operación con vecinos."
+    ROLES_CREAN = (
+        Rol.FUNCIONARIO,
+        Rol.ENCARGADO_AREA,
+        Rol.DELEGADO_TERRITORIAL,
+        Rol.JEFE_DELEGACIONES,
+        Rol.ADMINISTRADOR,
+    )
+
+    def has_permission(self, request, view):
+        if request.method == "POST":
+            return rol_de_usuario(request.user) in self.ROLES_CREAN
+        return tiene_rol(request.user, Rol.ADMINISTRADOR)

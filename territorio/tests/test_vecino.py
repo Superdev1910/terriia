@@ -4,7 +4,9 @@ from rest_framework.test import APITestCase
 from core.models import Auditoria
 from ..models import Vecino
 
-from .utiles import crear_admin, crear_funcionario, rut_valido
+from core.models import Rol
+
+from .utiles import crear_admin, crear_funcionario, crear_usuario, rut_valido
 
 
 class VecinoTests(APITestCase):
@@ -84,3 +86,74 @@ class VecinoTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         vecino = Vecino.objects.get(pk=pk)
         self.assertEqual(vecino.estado, Vecino.INACTIVO)
+
+
+class VecinoCreacionOperativaTests(APITestCase):
+    """Desde Registrar actividad los roles operativos registran al vecino (solo POST)."""
+
+    url = "/api/vecinos/"
+
+    def datos(self, **extra):
+        data = {
+            "rut": rut_valido(15667777),
+            "nombres": "Ana",
+            "apellidos": "Pérez",
+            "telefono": "+56912345678",
+        }
+        data.update(extra)
+        return data
+
+    def test_roles_operativos_crean_y_se_audita(self):
+        roles = [
+            Rol.FUNCIONARIO,
+            Rol.ENCARGADO_AREA,
+            Rol.DELEGADO_TERRITORIAL,
+            Rol.JEFE_DELEGACIONES,
+        ]
+        for i, rol in enumerate(roles):
+            usuario = crear_usuario(f"op{i}@terriia.cl", 13000000 + i, rol)
+            self.client.force_authenticate(usuario)
+            r = self.client.post(self.url, self.datos(rut=rut_valido(16000000 + i)))
+            self.assertEqual(r.status_code, status.HTTP_201_CREATED, (rol, r.data))
+            self.assertTrue(
+                Auditoria.objects.filter(
+                    entidad="vecino", evento="crear", entidad_id=r.data["id_vecino"]
+                ).exists()
+            )
+
+    def test_funcionario_no_edita_ni_desactiva_ni_lista(self):
+        vecino = Vecino.objects.create(rut=rut_valido(17000000), nombres="Luis", apellidos="Rojas")
+        self.client.force_authenticate(crear_funcionario())
+        detalle = f"{self.url}{vecino.pk}/"
+        self.assertEqual(
+            self.client.patch(detalle, {"direccion": "X"}).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(self.client.delete(detalle).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_403_FORBIDDEN)
+        vecino.refresh_from_db()
+        self.assertEqual(vecino.estado, Vecino.ACTIVO)
+
+    def test_alcaldesa_no_crea(self):
+        self.client.force_authenticate(crear_usuario("alc@terriia.cl", 13500000, Rol.ALCALDESA))
+        r = self.client.post(self.url, self.datos())
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(Vecino.objects.exists())
+
+    def test_funcionario_rut_invalido_y_duplicado_400(self):
+        self.client.force_authenticate(crear_funcionario())
+        self.assertEqual(
+            self.client.post(self.url, self.datos(rut="12.345.678-0")).status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(
+            self.client.post(self.url, self.datos()).status_code, status.HTTP_201_CREATED
+        )
+        self.assertEqual(
+            self.client.post(self.url, self.datos()).status_code, status.HTTP_400_BAD_REQUEST
+        )
+
+    def test_sin_sesion_no_crea(self):
+        self.assertEqual(
+            self.client.post(self.url, self.datos()).status_code, status.HTTP_403_FORBIDDEN
+        )

@@ -68,9 +68,15 @@
   }
 
   /* ---------------- Autocompletado por RUT ---------------- */
+  function mostrarPanelVecino(si) {
+    $('panelVecinoNuevo').hidden = !si;
+    $('errorVecinoNuevo').textContent = '';
+    if (si && !$('vn_telefono').value) $('vn_telefono').value = $('telefono').value.trim();
+  }
   async function buscarRut() {
     const rut = $('rut').value.trim();
     vecinoId = null;
+    mostrarPanelVecino(false);
     if (!rut) { $('ayudaRut').textContent = AYUDA_RUT; return; }
     try {
       const v = await api(`/api/vecinos/buscar/?rut=${encodeURIComponent(rut)}`);
@@ -80,8 +86,64 @@
       $('telefono').value = v.telefono || '';
       $('ayudaRut').textContent = 'Vecino encontrado: datos completados.';
     } catch (e) {
-      $('ayudaRut').textContent = e.message + ' Puede escribir el nombre y teléfono a mano.';
+      if (e.status === 404) {
+        $('ayudaRut').textContent = 'Vecino no registrado: complete sus datos para registrarlo.';
+        mostrarPanelVecino(true);
+      } else {
+        $('ayudaRut').textContent = e.message;
+      }
     }
+  }
+  // Los errores de DRF llegan como {campo: [mensajes]}; se juntan para mostrarlos tal cual.
+  function mensajeErrores(datos) {
+    if (!datos || typeof datos !== 'object') return 'No se pudo registrar el vecino.';
+    if (datos.error) return datos.error;
+    const partes = [];
+    Object.keys(datos).forEach((k) => {
+      const m = Array.isArray(datos[k]) ? datos[k].join(' ') : String(datos[k]);
+      partes.push(k === 'detail' || k === 'non_field_errors' ? m : `${k}: ${m}`);
+    });
+    return partes.join(' | ') || 'No se pudo registrar el vecino.';
+  }
+  // Crea el vecino con el panel; devuelve true si quedó registrado (vecinoId asignado).
+  async function registrarVecino() {
+    const error = $('errorVecinoNuevo');
+    error.textContent = '';
+    const cuerpo = {
+      rut: $('rut').value.trim(),
+      nombres: $('vn_nombres').value.trim(),
+      apellidos: $('vn_apellidos').value.trim(),
+      telefono: $('vn_telefono').value.trim(),
+      direccion: $('vn_direccion').value.trim(),
+    };
+    if (!cuerpo.nombres || !cuerpo.apellidos) {
+      error.textContent = 'Indique nombres y apellidos del vecino para registrarlo.';
+      return false;
+    }
+    $('btnRegistrarVecino').disabled = true;
+    try {
+      const resp = await fetch('/api/vecinos/', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf(), Accept: 'application/json' },
+        body: JSON.stringify(cuerpo),
+      });
+      let datos = null;
+      try { datos = await resp.json(); } catch (e) { datos = null; }
+      if (!resp.ok) {
+        error.textContent = resp.status === 403 ? 'No tiene permiso para registrar vecinos.' : mensajeErrores(datos);
+        return false;
+      }
+      vecinoId = datos.id_vecino;
+      $('rut').value = datos.rut;
+      $('contacto').value = `${datos.nombres} ${datos.apellidos}`.trim();
+      $('telefono').value = datos.telefono || '';
+      $('ayudaRut').textContent = 'Vecino registrado.';
+      mostrarPanelVecino(false);
+      return true;
+    } catch (e) {
+      error.textContent = 'No se pudo registrar el vecino. Revise su conexión.';
+      return false;
+    } finally { $('btnRegistrarVecino').disabled = false; }
   }
 
   /* ---------------- Guardar ---------------- */
@@ -113,12 +175,20 @@
     if (!datos.fecha) { marcarError('fecha', 'Indique la fecha.'); return; }
     $('btnGuardar').disabled = true;
     try {
+      // RUT escrito, sin vecino encontrado ni registrado: se registra antes de guardar.
+      if ($('rut').value.trim() && !vecinoId) {
+        mostrarPanelVecino(true);
+        if (!(await registrarVecino())) return;
+        datos.vecino = vecinoId;
+        datos.contacto = $('contacto').value.trim();
+        datos.telefono = $('telefono').value.trim();
+      }
       const r = await api('/api/actividades/', { method: 'POST', body: JSON.stringify(datos) });
       const aviso = r.pondera ? '' :
         `<p class="aviso-cascada"><i class="bi bi-exclamation-triangle"></i> <strong>No pondera:</strong> ${esc(r.motivo_no_pondera)}</p>`;
       await alerta(r.pondera ? 'success' : 'warning', 'Registro guardado',
         `<p>Código: <strong class="mono">${esc(r.codigo)}</strong></p>${aviso}`);
-      $('formActividad').reset(); vecinoId = null; $('ayudaRut').textContent = AYUDA_RUT; $('fecha').value = fechaLocalActual(); pintarTipos();
+      $('formActividad').reset(); vecinoId = null; mostrarPanelVecino(false); $('ayudaRut').textContent = AYUDA_RUT; $('fecha').value = fechaLocalActual(); pintarTipos();
     } catch (err) {
       if (!(err.campo && marcarError(err.campo, err.message))) {
         alerta('error', 'No se pudo guardar', esc(err.message));
@@ -144,10 +214,11 @@
     $('tipo_atencion').addEventListener('change', pintarSubs);
     $('rut').addEventListener('blur', buscarRut);
     $('btnBuscarRut').addEventListener('click', buscarRut);
-    $('rut').addEventListener('input', () => { vecinoId = null; });
+    $('rut').addEventListener('input', () => { vecinoId = null; mostrarPanelVecino(false); });
+    $('btnRegistrarVecino').addEventListener('click', registrarVecino);
     $('formActividad').addEventListener('submit', guardar);
     $('formActividad').addEventListener('reset', () => {
-      limpiarErrores(); vecinoId = null; $('ayudaRut').textContent = AYUDA_RUT;
+      limpiarErrores(); vecinoId = null; mostrarPanelVecino(false); $('ayudaRut').textContent = AYUDA_RUT;
       setTimeout(() => { $('fecha').value = fechaLocalActual(); pintarTipos(); }, 0);
     });
   }
