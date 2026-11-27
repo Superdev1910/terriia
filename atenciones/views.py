@@ -267,15 +267,10 @@ class ActividadViewSet(MantenedorViewSet):
     def get_queryset(self):
         # super(MantenedorViewSet, self): se salta el alcance genérico y usa el de actividades.
         user = self.request.user
-        queryset = filtrar_por_alcance(
+        # El Tubo es consultable por toda la delegación; escribir lo limitan get_object y seguimiento.
+        return filtrar_por_alcance(
             super(MantenedorViewSet, self).get_queryset(), user, "funcionario__delegacion_id"
         )
-        if rol_de_usuario(user) == Rol.FUNCIONARIO:
-            # Lo propio y lo que le asignaron como responsable (HU02).
-            return queryset.filter(
-                Q(funcionario_id=user.funcionario_id) | Q(responsable_id=user.funcionario_id)
-            )
-        return queryset
 
     def handle_exception(self, exc):
         return super().handle_exception(actividad_conflicto(exc))
@@ -667,7 +662,10 @@ class EvidenciaViewSet(
             super().get_queryset(), user, "actividad__funcionario__delegacion_id"
         )
         if rol_de_usuario(user) == Rol.FUNCIONARIO:
-            return queryset.filter(actividad__funcionario_id=user.funcionario_id)
+            return queryset.filter(
+                Q(actividad__funcionario_id=user.funcionario_id)
+                | Q(actividad__responsable_id=user.funcionario_id)
+            )
         return queryset
 
     def handle_exception(self, exc):

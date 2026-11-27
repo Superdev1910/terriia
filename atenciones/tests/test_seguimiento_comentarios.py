@@ -62,7 +62,8 @@ class ComentariosTests(EscenarioSolicitudesMixin, APITestCase):
     def test_solo_comenta_quien_ve_la_solicitud(self):
         self.client.force_authenticate(self.usuario_luis)
         self.assertEqual(self.comentar("No debería").status_code, 403)
-        self.assertEqual(self.client.get(self.url(self.a, "comentarios")).status_code, 404)
+        # Un colega de la delegación puede leer los comentarios, no escribirlos.
+        self.assertEqual(self.client.get(self.url(self.a, "comentarios")).status_code, 200)
         self.client.force_authenticate(self.delegado_norte)
         self.assertEqual(self.comentar("Tampoco").status_code, 403)
         self.assertEqual(self.client.get(self.url(self.a, "comentarios")).status_code, 404)
