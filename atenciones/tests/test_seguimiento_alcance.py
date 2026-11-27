@@ -41,20 +41,31 @@ class AlcanceTests(EscenarioSolicitudesMixin, APITestCase):
         self.assertEqual(ids(self.listar(self.delegado_norte)), {self.de_pedro.pk})
         self.assertEqual(self.client.get(self.url(self.de_ana)).status_code, 404)
 
-    def test_funcionario_ve_las_que_escribio_o_le_asignaron(self):
-        """HU02: la persona a quien se asigna una actividad la ve en su lista."""
-        self.assertEqual(
-            ids(self.listar(self.usuario_ana)), {self.de_ana.pk, self.asignada_a_luis.pk}
-        )
-        self.assertEqual(
-            ids(self.listar(self.usuario_luis)), {self.de_luis.pk, self.asignada_a_luis.pk}
-        )
+    def test_funcionario_ve_toda_su_delegacion_y_no_otras(self):
+        """El Tubo lo consulta toda la delegación; otras delegaciones siguen invisibles."""
+        todas = {self.de_ana.pk, self.de_luis.pk, self.asignada_a_luis.pk}
+        self.assertEqual(ids(self.listar(self.usuario_ana)), todas)
+        self.assertEqual(ids(self.listar(self.usuario_luis)), todas)
         self.assertEqual(ids(self.listar(self.usuario_pedro)), {self.de_pedro.pk})
 
-    def test_funcionario_no_abre_la_de_otro(self):
+    def test_mis_registros_solo_las_propias(self):
+        self.assertEqual(
+            ids(self.listar(self.usuario_ana, mis_registros="true")),
+            {self.de_ana.pk, self.asignada_a_luis.pk},
+        )
+        self.assertEqual(
+            ids(self.listar(self.usuario_luis, mis_registros="true")), {self.de_luis.pk}
+        )
+
+    def test_funcionario_abre_la_de_un_colega_pero_no_la_de_otra_delegacion(self):
         self.client.force_authenticate(self.usuario_ana)
-        self.assertEqual(self.client.get(self.url(self.de_luis)).status_code, 404)
+        self.assertEqual(self.client.get(self.url(self.de_luis)).status_code, 200)
         self.assertEqual(self.client.get(self.url(self.de_pedro)).status_code, 404)
+
+    def test_funcionario_no_edita_la_de_un_colega(self):
+        self.client.force_authenticate(self.usuario_ana)
+        r = self.client.patch(self.url(self.de_luis), {"descripcion": "x"}, format="json")
+        self.assertIn(r.status_code, (403, 404))
 
     def test_anonimo_no_entra(self):
         self.client.force_authenticate(None)
@@ -163,3 +174,13 @@ class EvidenciaDelResponsableTests(MediaTemporalMixin, EscenarioSolicitudesMixin
             "/api/evidencias/", {"actividad": self.a.pk, "archivo": foto}, format="multipart"
         )
         self.assertIn(r.status_code, (400, 403))
+
+    def test_responsable_lista_las_evidencias_de_la_asignada(self):
+        self.subir(self.usuario_luis)
+        self.client.force_authenticate(self.usuario_luis)
+        r = self.client.get("/api/evidencias/", {"actividad": self.a.pk})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data["results"]), 1)
+        self.client.force_authenticate(self.usuario_pedro)
+        r = self.client.get("/api/evidencias/", {"actividad": self.a.pk})
+        self.assertEqual(len(r.data["results"]), 0)
