@@ -7,6 +7,7 @@ from .views import (
     EvidenciaViewSet,
     SubAtencionViewSet,
     TipoAtencionViewSet,
+    VisitaTerrenoViewSet,
 )
 from .reportes import ReporteDelegacionesView, ReporteSolicitudesResueltasView
 
@@ -15,6 +16,7 @@ router.register("tipos-atencion", TipoAtencionViewSet, basename="tipo-atencion")
 router.register("sub-atenciones", SubAtencionViewSet, basename="sub-atencion")
 router.register("actividades", ActividadViewSet, basename="actividad")
 router.register("evidencias", EvidenciaViewSet, basename="evidencia")
+router.register("visitas-terreno", VisitaTerrenoViewSet, basename="visita-terreno")
 
 urlpatterns = [
     # Antes del router de territorio (ver config/urls.py): no debe leerse como vecinos/<pk>/.

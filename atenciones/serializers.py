@@ -6,7 +6,7 @@ from rest_framework import serializers
 
 from core.models import Rol
 
-from . import evidencias, reglas, verificacion
+from . import evidencias, reglas, terreno, verificacion
 from .models import (
     Actividad,
     Evidencia,
@@ -135,6 +135,10 @@ class ActividadSerializer(serializers.ModelSerializer):
     vencida = serializers.BooleanField(source="esta_vencida", read_only=True)  # HU07
     dias_atraso = serializers.IntegerField(read_only=True)
     ultima_observacion = serializers.SerializerMethodField()
+    requiere_terreno = serializers.BooleanField(source="ingreso_a_tubo", read_only=True)
+    terreno_inicial = serializers.SerializerMethodField()
+    terreno_cierre = serializers.SerializerMethodField()
+    puede_registrar_visita = serializers.SerializerMethodField()
 
     class Meta:
         model = Actividad
@@ -185,6 +189,10 @@ class ActividadSerializer(serializers.ModelSerializer):
             "n_comentarios",
             "puede_editar",
             "ultima_observacion",
+            "requiere_terreno",
+            "terreno_inicial",
+            "terreno_cierre",
+            "puede_registrar_visita",
         ]
         read_only_fields = [
             "codigo",
@@ -206,6 +214,15 @@ class ActividadSerializer(serializers.ModelSerializer):
             return ""
         ultimo = obj.historial_verificacion.filter(estado_nuevo=obj.estado_verificacion).last()
         return ultimo.observacion if ultimo else ""
+
+    def get_terreno_inicial(self, obj):
+        return terreno.estado_terreno(obj)[0] if obj.ingreso_a_tubo else None
+
+    def get_terreno_cierre(self, obj):
+        return terreno.estado_terreno(obj)[1] if obj.ingreso_a_tubo else None
+
+    def get_puede_registrar_visita(self, obj):
+        return terreno.puede_registrar_ahora(self.context["request"].user, obj)
 
     def get_puede_editar(self, obj):
         """Solo el autor y solo mientras esté pendiente o con antecedentes pedidos."""

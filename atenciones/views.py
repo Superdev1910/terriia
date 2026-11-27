@@ -11,7 +11,7 @@ from django_filters import rest_framework as filters
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -28,7 +28,7 @@ from organizacion.paginacion import PaginacionMantenedor
 from personas.models import Funcionario
 from territorio.models import Territorio, Vecino
 
-from . import reglas, seguimiento, verificacion
+from . import reglas, seguimiento, terreno, verificacion
 from .models import (
     Actividad,
     ActividadHistorial,
@@ -36,6 +36,7 @@ from .models import (
     Evidencia,
     SubAtencion,
     TipoAtencion,
+    VisitaTerreno,
 )
 from .serializers import (
     ActividadSerializer,
@@ -139,6 +140,22 @@ class PuedeSeguimiento(BasePermission):
         return seguimiento.PuedeHacerSeguimiento().has_permission(request, view)
 
 
+class PuedeVisitarTerreno(BasePermission):
+    """Leer: cualquier rol con alcance. Registrar: quien verifica o un Funcionario (el
+    responsable asignado); la regla fina por actividad está en atenciones/terreno.py."""
+
+    message = "Tu rol no puede registrar visitas a terreno."
+
+    def has_permission(self, request, view):
+        user = request.user
+        rol = rol_de_usuario(user)  # None si es anónimo
+        if rol is None or not verificacion.tiene_alcance(user):
+            return False
+        if request.method in SAFE_METHODS:
+            return rol in ROLES_QUE_CONSULTAN
+        return rol in verificacion.ROLES_VERIFICADORES + (Rol.FUNCIONARIO,)
+
+
 class PuedeConsultarEvidencias(BasePermission):
     message = "No tienes permiso para ver evidencias."
 
@@ -236,6 +253,7 @@ class ActividadViewSet(MantenedorViewSet):
             n_evidencias=Count("evidencias", distinct=True),
             n_comentarios=Count("comentarios", distinct=True),
         )
+        .prefetch_related("visitas_terreno")
         .order_by("-fecha", "-id_actividad")
     )
     serializer_class = ActividadSerializer
@@ -276,7 +294,14 @@ class ActividadViewSet(MantenedorViewSet):
         return super().handle_exception(actividad_conflicto(exc))
 
     def get_object(self):
-        lectura = self.action in ("retrieve", "historial", "historial_seguimiento") or (
+        # visitas_terreno: otra delegación = 404; el 403 por rol o por no ser el responsable lo
+        # da terreno.
+        lectura = self.action in (
+            "retrieve",
+            "historial",
+            "historial_seguimiento",
+            "visitas_terreno",
+        ) or (
             self.action in ("comentarios", "opciones_seguimiento") and self.request.method == "GET"
         )
         if lectura:
@@ -375,6 +400,7 @@ class ActividadViewSet(MantenedorViewSet):
         with transaction.atomic():
             actividad = Actividad.objects.select_for_update().get(pk=actividad.pk)
             seguimiento.exigir_abierta(actividad)
+            terreno.validar_asignacion(actividad)
             anterior = auditoria.foto(actividad)
             seguimiento.aplicar(
                 actividad,
@@ -405,6 +431,7 @@ class ActividadViewSet(MantenedorViewSet):
             )
             datos.is_valid(raise_exception=True)
             nuevo = datos.validated_data["estado"]
+            terreno.validar_cambio_estado(actividad, nuevo)
             motivo = datos.validated_data.get("motivo_atraso")
             anterior = auditoria.foto(actividad)
             previo = actividad.estado
@@ -521,6 +548,29 @@ class ActividadViewSet(MantenedorViewSet):
             )
         return Response(
             seguimiento.ComentarioSerializer(comentario).data, status=status.HTTP_201_CREATED
+        )
+
+    @action(
+        detail=True,
+        methods=["get", "post"],
+        url_path="visitas-terreno",
+        permission_classes=[PuedeVisitarTerreno],
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+        pagination_class=None,
+    )
+    def visitas_terreno(self, request, pk=None):
+        """HU29: GET lista las visitas; POST registra una (multipart, archivo opcional)."""
+        actividad = self.get_object()
+        if request.method == "GET":
+            filas = actividad.visitas_terreno.select_related("usuario")
+            return Response(terreno.VisitaTerrenoSerializer(filas, many=True).data)
+        if not terreno.puede_registrar(request.user, actividad):
+            raise PermissionDenied(terreno.MSJ_SIN_PERMISO)
+        datos = terreno.VisitaTerrenoSerializer(data=request.data)
+        datos.is_valid(raise_exception=True)
+        visita = terreno.registrar_visita(request.user, actividad, datos.validated_data)
+        return Response(
+            terreno.VisitaTerrenoSerializer(visita).data, status=status.HTTP_201_CREATED
         )
 
     @action(
@@ -736,6 +786,40 @@ class EvidenciaViewSet(
                 as_attachment=True,
                 filename=nombre,
                 content_type=evidencia.tipo_contenido,
+            )
+        respuesta["X-Content-Type-Options"] = "nosniff"
+        return respuesta
+
+
+class VisitaTerrenoViewSet(viewsets.GenericViewSet):
+    """Solo la descarga del archivo de una visita: mismo acceso que leer la actividad."""
+
+    permission_classes = [PuedeVisitarTerreno]
+    queryset = VisitaTerreno.objects.select_related("actividad__funcionario")
+
+    def get_queryset(self):
+        return filtrar_por_alcance(
+            super().get_queryset(), self.request.user, "actividad__funcionario__delegacion_id"
+        )
+
+    @action(detail=True, methods=["get"])
+    def archivo(self, request, pk=None):
+        """Misma entrega que las evidencias (X-Accel-Redirect si hay EVIDENCIAS_X_ACCEL_PREFIX)."""
+        visita = get_object_or_404(self.get_queryset(), pk=pk)
+        if not visita.archivo:
+            return Response({"detail": "La visita no tiene archivo."}, status=404)
+        nombre = f"visita-{visita.pk}" + os.path.splitext(visita.archivo.name)[1].lower()
+        prefijo = settings.EVIDENCIAS_X_ACCEL_PREFIX
+        if prefijo:
+            respuesta = HttpResponse(content_type=visita.tipo_contenido)
+            respuesta["X-Accel-Redirect"] = prefijo.rstrip("/") + "/" + visita.archivo.name
+            respuesta["Content-Disposition"] = f'attachment; filename="{nombre}"'
+        else:
+            respuesta = FileResponse(
+                visita.archivo.open("rb"),
+                as_attachment=True,
+                filename=nombre,
+                content_type=visita.tipo_contenido,
             )
         respuesta["X-Content-Type-Options"] = "nosniff"
         return respuesta
