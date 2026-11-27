@@ -70,6 +70,8 @@ black --check .                                     # formato (lo exige GitHub A
 
 Las pruebas usan SQLite y un `MEDIA_ROOT` temporal para las evidencias (no dejan archivos). GitHub Actions
 (`.github/workflows/pruebas.yml`) corre black, las migraciones y las pruebas en cada Pull Request.
+Última verificación local registrada para HU20/HU22: `& .\venv\Scripts\python.exe manage.py test`
+completó 545 pruebas, OK en 1189.837 segundos, tras la corrección final de ruta HU22 (2026-11-26).
 
 ## Módulos, rutas y pantallas
 
@@ -83,11 +85,13 @@ servidor; ocultar un ítem del menú no es una medida de seguridad.
 | Personas | `/api/usuarios/`, `/api/funcionarios/`, `/api/mi-perfil/` | `/personas/usuarios/`, `/personas/funcionarios/`, `/personas/mi-perfil/` | Administrador; Delegado (funcionarios de su delegación); Funcionario (su perfil) |
 | Organización | `/api/delegaciones/`, `/api/areas/`, `/api/cargos/`, `/api/organizacion/resumen/` | `/organizacion/` (inicio), `delegaciones/`, `areas/`, `cargos/` | Administrador |
 | Territorio | `/api/vecinos/`, `/api/territorios/`, `/api/juntas-vecinos/` | `/territorio/vecinos/`, `territorios/`, `juntas-vecinos/` | Administrador; Delegado (territorios y juntas de su delegación) |
-| Metas | `/api/periodos/`, `/api/items/`, `/api/metas-delegacion/`, `/api/metas/`, `/api/recalibraciones-meta/` | `/metas/periodos/`, `items/`, `metas-delegacion/`, `metas-individuales/` | Administrador; Delegado (metas de su delegación) |
+| Metas | `/api/periodos/`, `/api/items/`, `/api/metas-delegacion/`, `/api/metas/`, `/api/recalibraciones-meta/`, `/api/dashboard/ejecutivo/` | `/metas/periodos/`, `items/`, `metas-delegacion/`, `metas-individuales/`, `/metas/dashboard-ejecutivo/` | Mantenedores: Administrador y Delegado (según alcance); dashboard ejecutivo: Alcaldesa y Administrador |
 | Catálogos de atención | `/api/tipos-atencion/`, `/api/sub-atenciones/` | `/atenciones/tipos-atencion/`, `/atenciones/sub-atenciones/` | Administrador |
 | Actividades | `/api/actividades/` (GET, POST, PUT/PATCH solo el autor; sin DELETE), `/api/actividades/opciones/`, `/api/vecinos/buscar/?rut=` | `/atenciones/registrar/` (Registrar actividad), `/atenciones/mis-registros/` (Mis registros) | Registran: Funcionario, Encargado de área, Delegado, Administrador. Consultan por API (con su alcance): Jefe de delegaciones y Alcaldesa |
 | Verificación | `POST /api/actividades/<id>/verificar/`, `GET /api/actividades/<id>/historial/` | `/atenciones/verificacion/` | Delegado, Encargado de área (su delegación); Jefe de delegaciones y Administrador (todas) |
 | Seguimiento | `POST /api/actividades/<id>/{asignar,cambiar-estado,fecha-compromiso,motivo-atraso}/`, `GET/POST .../comentarios/`, `GET .../historial-seguimiento/`, `GET /api/actividades/?vencida=true` | `/atenciones/seguimiento/` (Seguimiento) | Asignar: Delegado (su delegación) y Administrador. Estado, fecha, motivo y comentarios: ellos más el autor y el responsable. Ver `docs/LEEME-seguimiento-actividades.md` |
+| Reporte histórico (HU20) | `GET /api/reportes/solicitudes-resueltas/` descarga Excel; `GET /api/reportes/solicitudes-resueltas/delegaciones/` | `/atenciones/reportes/solicitudes-resueltas/` | Administrador y Jefe de delegaciones. Ver `docs/reporte-historico-hu20.md` |
+| Dashboard ejecutivo (HU22) | `GET /api/dashboard/ejecutivo/` | `/metas/dashboard-ejecutivo/` | Alcaldesa y Administrador; solo promedios globales y por delegación |
 | Evidencias | `/api/evidencias/` (subir, listar, borrar), `GET /api/evidencias/<id>/archivo/` | Dentro de «Mis registros» y de la ficha de «Verificación» | Autor y verificadores con alcance |
 
 ### Actividades y gestión social
@@ -114,7 +118,7 @@ Los 6 roles del sistema están en `core/models.py` y no se pueden renombrar ni d
 | Delegado territorial | Su delegación | Territorios, juntas, funcionarios y metas de su delegación; registrar actividades (si tiene ficha de funcionario); ver y verificar las actividades de su delegación. Catálogos globales en solo lectura. |
 | Encargado de área | Su delegación | Registrar actividades (con ficha de funcionario), ver y verificar las de su delegación. |
 | Funcionario | Lo propio | Ver su ficha y metas en `/personas/mi-perfil/`; registrar actividades y gestiones sociales, editarlas mientras estén pendientes o con antecedentes solicitados, subir evidencias, ver «Mis registros» y dar seguimiento (estado, fecha de compromiso, motivo de atraso y comentarios) a las que escribió o le asignaron. |
-| Alcaldesa | Global | Consulta de actividades por API; hoy no tiene pantallas propias en el menú. |
+| Alcaldesa | Global | Consulta de actividades autorizadas y dashboard ejecutivo consolidado; sin exposición de funcionarios, vecinos, áreas ni solicitudes individuales en HU22. |
 
 El acceso global (todas las delegaciones) lo dan solo los roles Administrador, Jefe de delegaciones y Alcaldesa. Un Delegado, Encargado o Funcionario sin delegación asignada no ve nada de actividades (403). La creación de cuentas y la asignación de roles son
 exclusivas del Administrador.
@@ -129,13 +133,15 @@ Según el código actual del repositorio.
 | Usuarios y funcionarios (`personas`) | Hecho | Mantenedores con alcance por delegación y «Mis datos y metas» del funcionario. |
 | Organización (`organizacion`) | Hecho | Delegaciones (crean sus 4 áreas), áreas, cargos, sitio público e inicio. |
 | Territorio (`territorio`) | Parcial | Vecinos, territorios y juntas listos. El vecino no tiene delegación propia (se deduce de sus actividades; `TODO(Pamela)`). |
-| Metas (`metas`) | Parcial | Períodos, ítems, metas por delegación e individuales y recalibraciones con mantenedores. No hay dashboard, semáforo ni cálculo del 120 % (`TODO(Valentina)`). |
+| Metas (`metas`) | Parcial | Mantenedores, cálculos, semáforo y dashboard ejecutivo agregado por delegación. Pendiente completar aspectos restantes del módulo y resolver la unificación del tope 120/150 documentada en el servicio. |
 | Catálogos de atención (`atenciones`) | Hecho | Tipos de atención y sub atenciones (semilla de ejemplo del área Social). |
 | Actividades y gestión social (`atenciones`) | Hecho | Ingreso, reglas de negocio, edición del autor, «Registrar actividad» y «Mis registros» con Excel. |
 | Seguimiento de actividades (`atenciones`) | Hecho (pendiente prueba en MariaDB y servidor) | Asignar a un área, estado, fecha de compromiso con historial, motivo de atraso, vencidas resaltadas y comentarios (HU02 a HU08). Pantalla «Seguimiento». |
 | Verificación y evidencias (`atenciones`) | Hecho (pendiente prueba manual en navegador) | Transiciones, historial, bandeja y ficha, subida y descarga protegida. Falta la prueba manual de las pantallas en navegador y configurar nginx en el servidor. |
 | Tubo y búsqueda | No iniciado | `ingreso_a_tubo` solo se guarda como dato (`TODO(Brian)`); `id_hito` es un entero sin modelo Hito. |
-| Reportes y protocolo | No iniciado | `TODO(Pamela)`. |
+| Reporte histórico (HU20) | Implementado, validación de navegador pendiente | Filtros, permisos, interfaz local y archivo `.xlsx` OpenXML generado por el servidor; 9 pruebas enfocadas aprobadas. No se verificó la descarga visual en navegador ni apertura en Excel/LibreOffice. Ver `docs/reporte-historico-hu20.md`. |
+| Dashboard ejecutivo (HU22) | Implementado y validado en pruebas enfocadas | Pantalla y endpoint Alcaldesa/Administrador, agregados globales y por todas las delegaciones, semáforo del servicio existente y respuesta sin datos individuales; 7 pruebas HU22 aprobadas. Ver `docs/evaluacion3-hu20-hu22.md`. |
+| Entregables de Evaluación 3 | Parcial | Anexo de protocolo, indicadores, trazabilidad, resultados esperados/observados y defectos: `docs/evaluacion3-hu20-hu22.md`. El plan de pruebas Excel existente se conserva como documento base. |
 | Felicitaciones y ausencias | No iniciado | `TODO(Fernando)`. |
 | Usuarios de demostración (`DEMO_CLAVE`) | No iniciado | La variable está documentada en `.env.example` pero ningún código la lee todavía. |
 

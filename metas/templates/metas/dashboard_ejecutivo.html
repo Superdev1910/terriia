@@ -1,0 +1,48 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Dashboard ejecutivo{% endblock %}
+{% block contenido %}
+<link rel="stylesheet" href="{% static 'metas/css/dashboard_ejecutivo.css' %}?v=20261126-1">
+<div id="dashboardEjecutivo" data-endpoint="{% url 'dashboard-ejecutivo' %}">
+<div class="encabezado-pagina">
+  <div>
+    <h1>Dashboard ejecutivo municipal</h1>
+    <p class="subtitulo">Cumplimiento consolidado por delegación, sin información individual.</p>
+  </div>
+</div>
+
+<section class="panel ejecutivo-resumen" aria-labelledby="tituloCumplimiento">
+  <div>
+    <h2 id="tituloCumplimiento">Cumplimiento global</h2>
+    <p id="periodoEjecutivo">Cargando período…</p>
+    <p class="ejecutivo-nota">Promedio del cumplimiento computable de funcionarios activos.</p>
+  </div>
+  <strong id="cumplimientoGlobal" class="ejecutivo-porcentaje" aria-live="polite">—</strong>
+</section>
+
+<section class="panel ejecutivo-panel" aria-labelledby="tituloDelegaciones">
+  <div class="ejecutivo-panel-cabecera">
+    <h2 id="tituloDelegaciones">Cumplimiento por delegación</h2>
+    <span id="porcentajeEsperado" class="ejecutivo-esperado"></span>
+  </div>
+  <p id="mensajeEjecutivo" class="ejecutivo-mensaje" role="status" aria-live="polite">
+    Cargando resultados…
+  </p>
+  <div class="ejecutivo-tabla-contenedor">
+    <table class="ejecutivo-tabla">
+      <thead>
+        <tr>
+          <th scope="col">Delegación</th>
+          <th scope="col">Cumplimiento</th>
+          <th scope="col">Semáforo</th>
+        </tr>
+      </thead>
+      <tbody id="filasDelegaciones"></tbody>
+    </table>
+  </div>
+</section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'metas/js/dashboard_ejecutivo.js' %}?v=20261126-1"></script>
+{% endblock %}

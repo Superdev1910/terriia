@@ -10,7 +10,31 @@ class CalculoMetasService:
     """Servicio para calcular el cumplimiento de metas y evaluar el semáforo diario."""
 
     TOPE_MAXIMO_COMPUTABLE = Decimal("120.00")  # Exigencia Evaluación 3
+    FACTOR_SEMAFORO_AMBAR = Decimal("0.80")
     # TODO(Valentina/Nicolás): unificar el tope (120 vs 150) en una sola constante
+
+    @staticmethod
+    def calcular_porcentaje_esperado(periodo, fecha_evaluacion=None):
+        if fecha_evaluacion is None:
+            fecha_evaluacion = date.today()
+
+        dias_totales = (
+            periodo.dias_computables or (periodo.fecha_termino - periodo.fecha_inicio).days + 1
+        )
+        dias_transcurridos = max(0, (fecha_evaluacion - periodo.fecha_inicio).days + 1)
+        dias_transcurridos = min(dias_transcurridos, dias_totales)
+
+        if dias_totales > 0:
+            return (Decimal(dias_transcurridos) / Decimal(dias_totales)) * Decimal("100.00")
+        return Decimal("0.00")
+
+    @classmethod
+    def calcular_color_semaforo(cls, cumplimiento, porcentaje_esperado):
+        if cumplimiento >= porcentaje_esperado:
+            return "verde"
+        if cumplimiento >= (porcentaje_esperado * cls.FACTOR_SEMAFORO_AMBAR):
+            return "ambar"
+        return "rojo"
 
     @classmethod
     def calcular_cumplimiento_funcionario(cls, funcionario_id, periodo_id, fecha_evaluacion=None):
@@ -93,24 +117,8 @@ class CalculoMetasService:
         cumplimiento_computable = min(cumplimiento_bruto_total, cls.TOPE_MAXIMO_COMPUTABLE)
 
         # 3. Evaluar el Semáforo Diario (Esperado vs. Real)
-        dias_totales = (
-            periodo.dias_computables or (periodo.fecha_termino - periodo.fecha_inicio).days + 1
-        )
-        dias_transcurridos = max(0, (fecha_evaluacion - periodo.fecha_inicio).days + 1)
-        dias_transcurridos = min(dias_transcurridos, dias_totales)
-
-        if dias_totales > 0:
-            pct_esperado = (Decimal(dias_transcurridos) / Decimal(dias_totales)) * Decimal("100.00")
-        else:
-            pct_esperado = Decimal("0.00")
-
-        # Regla del Semáforo: Verde (al día o sobre el esperado), Ámbar (próximo), Rojo (retrasado)
-        if cumplimiento_computable >= pct_esperado:
-            color_semaforo = "verde"
-        elif cumplimiento_computable >= (pct_esperado * Decimal("0.80")):
-            color_semaforo = "ambar"
-        else:
-            color_semaforo = "rojo"
+        pct_esperado = cls.calcular_porcentaje_esperado(periodo, fecha_evaluacion)
+        color_semaforo = cls.calcular_color_semaforo(cumplimiento_computable, pct_esperado)
 
         return {
             "funcionario_id": funcionario_id,

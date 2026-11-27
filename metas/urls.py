@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
     DashboardDelegacionView,
+    DashboardEjecutivoView,
     DashboardFuncionarioView,
     ItemViewSet,
     MetaDelegacionViewSet,
@@ -32,5 +33,10 @@ urlpatterns = router.urls + [
         "dashboard/delegacion/<int:delegacion_id>/",
         DashboardDelegacionView.as_view(),
         name="dashboard-delegacion",
+    ),
+    path(
+        "dashboard/ejecutivo/",
+        DashboardEjecutivoView.as_view(),
+        name="dashboard-ejecutivo",
     ),
 ]

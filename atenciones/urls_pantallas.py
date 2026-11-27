@@ -9,4 +9,9 @@ urlpatterns = [
     path("verificacion/", pantallas.verificacion, name="atenciones_verificacion"),
     path("mis-registros/", pantallas.mis_registros, name="atenciones_mis_registros"),
     path("seguimiento/", pantallas.seguimiento, name="atenciones_seguimiento"),
+    path(
+        "reportes/solicitudes-resueltas/",
+        pantallas.reporte_solicitudes_resueltas,
+        name="atenciones_reporte_solicitudes_resueltas",
+    ),
 ]

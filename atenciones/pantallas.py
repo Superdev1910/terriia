@@ -93,3 +93,13 @@ def seguimiento(request):
     datos["rol_codigo"] = CODIGO_ROL[rol_de_usuario(request.user)]
     datos["mi_funcionario"] = request.user.funcionario_id
     return render(request, "atenciones/actividad_seguimiento.html", datos)
+
+
+@solo_roles(Rol.ADMINISTRADOR, Rol.JEFE_DELEGACIONES)
+@ensure_csrf_cookie
+def reporte_solicitudes_resueltas(request):
+    return render(
+        request,
+        "atenciones/reporte_historico.html",
+        contexto_usuario(request, "atenciones_reporte_solicitudes_resueltas"),
+    )

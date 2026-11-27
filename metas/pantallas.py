@@ -41,3 +41,11 @@ def metas_delegacion(request):
 @ensure_csrf_cookie
 def metas_individuales(request):
     return pagina(request, "metas_individuales", "metas", "Metas individuales")
+
+
+@solo_roles(Rol.ADMINISTRADOR, Rol.ALCALDESA)
+@ensure_csrf_cookie
+def dashboard_ejecutivo(request):
+    datos = contexto_usuario(request, "metas_dashboard_ejecutivo")
+    datos["menu_secciones"] = menu_para_usuario(request.user)
+    return render(request, "metas/dashboard_ejecutivo.html", datos)
