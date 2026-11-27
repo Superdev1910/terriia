@@ -1,11 +1,14 @@
 from core.views import MantenedorViewSet
-from core.permissions import IsAdministradorODelegado
+from core.permissions import IsAdministradorODelegado, IsOperativoCreaVecinos
 
 from .models import JuntaVecinos, Territorio, Vecino
 from .serializers import JuntaVecinosSerializer, TerritorioSerializer, VecinoSerializer
 
 
 class VecinoViewSet(MantenedorViewSet):
+    # Vecino no tiene delegación: crear lo hacen los roles operativos (desde Registrar actividad);
+    # listar, editar y desactivar siguen siendo del Administrador.
+    permission_classes = [IsOperativoCreaVecinos]
     queryset = Vecino.objects.all()
     serializer_class = VecinoSerializer
     search_fields = ["rut", "nombres", "apellidos", "direccion"]
