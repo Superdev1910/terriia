@@ -5,13 +5,13 @@
     vecinos: { title: "Vecinos", url: "/api/vecinos/", pk: "id_vecino", estadoCampo: "estado", estados: [["activo", "Activos"], ["inactivo", "Inactivos"]], fields: [
       ["rut", "RUT", "text", true], ["nombres", "Nombres", "text", true], ["apellidos", "Apellidos", "text", true],
       ["telefono", "Teléfono", "text", false], ["direccion", "Dirección", "text", false]],
-      cols: [["rut","RUT"],["nombres","Nombres"],["apellidos","Apellidos"],["estado","Estado"]] },
+      cols: [["rut","RUT"],["nombres","Nombres"],["apellidos","Apellidos"],["juntas","Juntas"],["estado","Estado"]] },
     territorios: { title: "Territorios", url: "/api/territorios/", pk: "id_territorio", estadoCampo: "activo", estados: [["true", "Activos"], ["false", "Inactivos"]], fields: [
       ["delegacion","Delegación","select",true], ["nombre","Nombre","text",true], ["es_formal","¿Es formal?","checkbox",false],
       ], cols: [["delegacion_nombre","Delegación"],["nombre","Nombre"],["es_formal","Formal"],["activo","Estado"]] },
-    "juntas-vecinos": { title: "Juntas de vecinos", url: "/api/juntas-vecinos/", pk: "id_junta_vecinos", estadoCampo: "activa", estados: [["true", "Activas"], ["false", "Inactivas"]], fields: [
+    "juntas-vecinos": { title: "Juntas de vecinos", url: "/api/juntas-vecinos/", pk: "id_junta_vecinos", miembros: true, estadoCampo: "activa", estados: [["true", "Activas"], ["false", "Inactivas"]], fields: [
       ["territorio","Territorio","select",true], ["numero_registro","N° registro","text",false], ["nombre","Nombre","text",true],
-      ["direccion","Dirección","text",false], ["presidente","Presidente","text",false], ["telefono","Teléfono","text",false], ["email","Correo","email",false]], cols: [["numero_registro","Registro"],["nombre","Nombre"],["territorio_nombre","Territorio"],["presidente","Presidente"],["telefono","Teléfono"],["email","Correo"],["activa","Estado"]] }
+      ["direccion","Dirección","text",false], ["presidente","Presidente","text",false], ["telefono","Teléfono","text",false], ["email","Correo","email",false]], cols: [["numero_registro","Registro"],["nombre","Nombre"],["territorio_nombre","Territorio"],["presidente_mostrado","Presidente"],["total_miembros","Miembros"],["telefono","Teléfono"],["email","Correo"],["activa","Estado"]] }
   }[entidad];
   const $ = id => document.getElementById(id); let pagina = 1; let editando = null; let filas = [];
   const estaActivo = valor => valor === true || valor === "activo" || valor === "activa";
@@ -23,20 +23,23 @@
     return data;
   }
   function esc(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  // El presidente sale de la membresía si existe; si no, del texto libre histórico.
+  const mostrarPresidente = row => ({...row, presidente_mostrado: row.presidente_vecino || row.presidente});
   async function cargar() {
     const params = new URLSearchParams({page: pagina, page_size: 20});
     const search = $("buscar").value.trim(); const estado = $("filtroEstado").value;
     if (search) params.set("search", search); if (estado) params.set(cfg.estadoCampo, estado === "true" ? "true" : estado === "false" ? "false" : estado);
-    try { const data = await api(`${cfg.url}?${params}`); filas = data.results; render(data); }
+    try { const data = await api(`${cfg.url}?${params}`); filas = data.results.map(mostrarPresidente); render(data); }
     catch (error) { $("estado").textContent = error.message; }
   }
   function render(data) {
     $("tituloPagina").textContent = cfg.title; $("subtituloPagina").textContent = "Administre registros y conserve su historial.";
     $("cabeceraTabla").innerHTML = cfg.cols.map(c => `<th>${c[1]}</th>`).join("") + "<th>Acciones</th>";
-    $("cuerpoTabla").innerHTML = filas.map(row => `<tr>${cfg.cols.map(c => `<td>${esc(c[0] === "es_formal" || c[0] === "activo" || c[0] === "activa" ? (row[c[0]] ? "Sí" : "No") : row[c[0]])}</td>`).join("")}<td><button class="btn btn-texto editar" data-id="${row[cfg.pk]}">Editar</button>${estaActivo(row[cfg.estadoCampo]) ? `<button class="btn btn-texto desactivar" data-id="${row[cfg.pk]}">Desactivar</button>` : ""}</td></tr>`).join("");
+    $("cuerpoTabla").innerHTML = filas.map(row => `<tr>${cfg.cols.map(c => `<td>${esc(c[0] === "es_formal" || c[0] === "activo" || c[0] === "activa" ? (row[c[0]] ? "Sí" : "No") : row[c[0]])}</td>`).join("")}<td>${cfg.miembros ? `<button class="btn btn-texto miembros" data-id="${row[cfg.pk]}">Miembros</button>` : ""}<button class="btn btn-texto editar" data-id="${row[cfg.pk]}">Editar</button>${estaActivo(row[cfg.estadoCampo]) ? `<button class="btn btn-texto desactivar" data-id="${row[cfg.pk]}">Desactivar</button>` : ""}</td></tr>`).join("");
     $("total").textContent = `${data.count} registro(s)`; $("paginador").innerHTML = `<button class="btn btn-texto" ${data.previous ? "" : "disabled"} id="anterior">Anterior</button><span>Página ${pagina}</span><button class="btn btn-texto" ${data.next ? "" : "disabled"} id="siguiente">Siguiente</button>`;
     $("anterior").onclick = () => { pagina--; cargar(); }; $("siguiente").onclick = () => { pagina++; cargar(); };
     document.querySelectorAll(".editar").forEach(b => b.onclick = () => abrir(filas.find(r => String(r[cfg.pk]) === b.dataset.id)));
+    document.querySelectorAll(".miembros").forEach(b => b.onclick = () => window.MiembrosJunta.abrir(filas.find(r => String(r[cfg.pk]) === b.dataset.id), cargar));
     document.querySelectorAll(".desactivar").forEach(b => b.onclick = () => desactivar(b.dataset.id));
   }
   async function cargarTodasLasPaginas(url) {
@@ -107,7 +110,7 @@
     try {
       const filasExportar = await cargarTodasLasPaginas(`${cfg.url}?${params}`);
       const encabezados = cfg.cols.map(columna => columna[1]);
-      const filasFormateadas = filasExportar.map(fila => cfg.cols.map(columna => {
+      const filasFormateadas = filasExportar.map(mostrarPresidente).map(fila => cfg.cols.map(columna => {
         const valor = fila[columna[0]];
         if (columna[0] === "es_formal" || columna[0] === "activo" || columna[0] === "activa") return valor ? "Sí" : "No";
         if (columna[0] === "estado") {
