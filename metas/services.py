@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from atenciones.models import Actividad
 from .cumplimiento import _limites_del_periodo
 from .models import Item, MetaDelegacion, MetaIndividual, Periodo
@@ -37,56 +37,16 @@ class CalculoMetasService:
         return "rojo"
 
     @classmethod
-    def calcular_cumplimiento_funcionario(cls, funcionario_id, periodo_id, fecha_evaluacion=None):
+    def consolidar_items(cls, filas):
         """
-        Calcula el avance de un funcionario para un período dado:
-        - Solo considera actividades aprobadas (estado de verificación aprobada, pondera).
-        - Pondera según el peso del ítem en el cargo.
-        - Aplica el tope máximo computable del 120%.
+        Aplica la fórmula de cumplimiento a filas (meta, item, avance_aprobado).
+        Devuelve (items_calculados, cumplimiento_bruto, cumplimiento_computable con tope).
         """
-        if fecha_evaluacion is None:
-            fecha_evaluacion = date.today()
-
-        periodo = Periodo.objects.get(pk=periodo_id)
-        inicio, fin = _limites_del_periodo(periodo)
-
-        # 1. Obtener las metas asignadas al funcionario a través de meta_delegacion
-        try:
-            metas = MetaIndividual.objects.filter(
-                funcionario_id=funcionario_id,
-                meta_delegacion__periodo=periodo,
-            ).select_related(
-                "meta_delegacion",
-                "meta_delegacion__item",
-                "meta_delegacion__item__cargo",
-            )
-        except Exception:
-            metas = MetaIndividual.objects.filter(funcionario_id=funcionario_id).select_related(
-                "meta_delegacion", "meta_delegacion__item"
-            )
-
         items_calculados = []
         cumplimiento_bruto_total = Decimal("0.00")
 
-        for meta in metas:
-            # Obtener el ítem a través de la relación meta_delegacion
-            meta_del = getattr(meta, "meta_delegacion", None)
-            item = getattr(meta_del, "item", None) if meta_del else getattr(meta, "item", None)
+        for meta, item, avance_aprobado in filas:
             valor_objetivo = meta.valor_objetivo or Decimal("0.00")
-
-            if not item:
-                continue
-
-            # Filtrar actividades del funcionario asociadas al ítem y período
-            avance_aprobado = Actividad.objects.filter(
-                funcionario_id=funcionario_id,
-                item=item,
-                tipo_registro=Actividad.ACTIVIDAD,
-                estado_verificacion=Actividad.VERIF_APROBADA,
-                pondera=True,
-                fecha__gte=inicio,
-                fecha__lt=fin,
-            ).count()
 
             # Porcentaje de cumplimiento del ítem individual
             if valor_objetivo > 0:
@@ -113,8 +73,106 @@ class CalculoMetasService:
                 }
             )
 
-        # 2. Aplicar el tope máximo computable del 120%
+        # Tope máximo computable del 120%
         cumplimiento_computable = min(cumplimiento_bruto_total, cls.TOPE_MAXIMO_COMPUTABLE)
+        return items_calculados, cumplimiento_bruto_total, cumplimiento_computable
+
+    @classmethod
+    def calcular_computable_por_funcionario(cls, periodo, funcionario_ids):
+        """
+        Versión masiva (2 consultas en total) de calcular_cumplimiento_funcionario.
+        Devuelve {funcionario_id: cumplimiento_computable (Decimal sin redondear)}.
+        """
+        funcionario_ids = list(funcionario_ids)
+        inicio, fin = _limites_del_periodo(periodo)
+        metas_por_funcionario = {pk: [] for pk in funcionario_ids}
+        metas = MetaIndividual.objects.filter(
+            funcionario_id__in=funcionario_ids, meta_delegacion__periodo=periodo
+        ).select_related("meta_delegacion", "meta_delegacion__item")
+        for meta in metas:
+            metas_por_funcionario[meta.funcionario_id].append(meta)
+
+        avances = {
+            (fila["funcionario_id"], fila["item_id"]): fila["total"]
+            for fila in Actividad.objects.filter(
+                funcionario_id__in=funcionario_ids,
+                tipo_registro=Actividad.ACTIVIDAD,
+                estado_verificacion=Actividad.VERIF_APROBADA,
+                pondera=True,
+                fecha__gte=inicio,
+                fecha__lt=fin,
+            )
+            .values("funcionario_id", "item_id")
+            .annotate(total=Count("pk"))
+        }
+
+        resultado = {}
+        for pk in funcionario_ids:
+            filas = [
+                (
+                    meta,
+                    meta.meta_delegacion.item,
+                    avances.get((pk, meta.meta_delegacion.item_id), 0),
+                )
+                for meta in metas_por_funcionario[pk]
+                if meta.meta_delegacion.item
+            ]
+            resultado[pk] = cls.consolidar_items(filas)[2]
+        return resultado
+
+    @classmethod
+    def calcular_cumplimiento_funcionario(
+        cls, funcionario_id, periodo_id, fecha_evaluacion=None, periodo=None
+    ):
+        """
+        Calcula el avance de un funcionario para un período dado:
+        - Solo considera actividades aprobadas (estado de verificación aprobada, pondera).
+        - Pondera según el peso del ítem en el cargo.
+        - Aplica el tope máximo computable del 120%.
+        """
+        if fecha_evaluacion is None:
+            fecha_evaluacion = date.today()
+
+        if periodo is None:
+            periodo = Periodo.objects.get(pk=periodo_id)
+        inicio, fin = _limites_del_periodo(periodo)
+
+        # 1. Obtener las metas asignadas al funcionario a través de meta_delegacion
+        try:
+            metas = MetaIndividual.objects.filter(
+                funcionario_id=funcionario_id,
+                meta_delegacion__periodo=periodo,
+            ).select_related(
+                "meta_delegacion",
+                "meta_delegacion__item",
+                "meta_delegacion__item__cargo",
+            )
+        except Exception:
+            metas = MetaIndividual.objects.filter(funcionario_id=funcionario_id).select_related(
+                "meta_delegacion", "meta_delegacion__item"
+            )
+
+        filas = []
+        for meta in metas:
+            meta_del = getattr(meta, "meta_delegacion", None)
+            item = getattr(meta_del, "item", None) if meta_del else getattr(meta, "item", None)
+            if not item:
+                continue
+            # Filtrar actividades del funcionario asociadas al ítem y período
+            avance_aprobado = Actividad.objects.filter(
+                funcionario_id=funcionario_id,
+                item=item,
+                tipo_registro=Actividad.ACTIVIDAD,
+                estado_verificacion=Actividad.VERIF_APROBADA,
+                pondera=True,
+                fecha__gte=inicio,
+                fecha__lt=fin,
+            ).count()
+            filas.append((meta, item, avance_aprobado))
+
+        items_calculados, cumplimiento_bruto_total, cumplimiento_computable = cls.consolidar_items(
+            filas
+        )
 
         # 3. Evaluar el Semáforo Diario (Esperado vs. Real)
         pct_esperado = cls.calcular_porcentaje_esperado(periodo, fecha_evaluacion)

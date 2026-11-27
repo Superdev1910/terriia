@@ -277,11 +277,14 @@ class DashboardEjecutivoView(views.APIView):
         sumas = {delegacion.pk: Decimal("0.00") for delegacion in delegaciones}
         cantidades = {delegacion.pk: 0 for delegacion in delegaciones}
 
+        computables = CalculoMetasService.calcular_computable_por_funcionario(
+            periodo, [funcionario.pk for funcionario in funcionarios]
+        )
         for funcionario in funcionarios:
-            resultado = CalculoMetasService.calcular_cumplimiento_funcionario(
-                funcionario_id=funcionario.pk, periodo_id=periodo.pk
+            # Mismo redondeo a 2 decimales que el cálculo individual
+            sumas[funcionario.delegacion_id] += Decimal(
+                str(round(float(computables[funcionario.pk]), 2))
             )
-            sumas[funcionario.delegacion_id] += Decimal(str(resultado["cumplimiento_computable"]))
             cantidades[funcionario.delegacion_id] += 1
 
         porcentaje_esperado = CalculoMetasService.calcular_porcentaje_esperado(periodo)
