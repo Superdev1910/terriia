@@ -143,7 +143,7 @@ Según el código actual del repositorio.
 | Dashboard ejecutivo (HU22) | Implementado y validado en pruebas enfocadas | Pantalla y endpoint Alcaldesa/Administrador, agregados globales y por todas las delegaciones, semáforo del servicio existente y respuesta sin datos individuales; 7 pruebas HU22 aprobadas. Ver `docs/evaluacion3-hu20-hu22.md`. |
 | Entregables de Evaluación 3 | Parcial | Anexo de protocolo, indicadores, trazabilidad, resultados esperados/observados y defectos: `docs/evaluacion3-hu20-hu22.md`. El plan de pruebas Excel existente se conserva como documento base. |
 | Felicitaciones y ausencias | No iniciado | `TODO(Fernando)`. |
-| Usuarios de demostración (`DEMO_CLAVE`) | No iniciado | La variable está documentada en `.env.example` pero ningún código la lee todavía. |
+| Usuarios de demostración (`DEMO_CLAVE`) | Hecho | Comando `python manage.py cargar_demo`: carga delegaciones, un usuario por rol (`*.demo@terriia.test`), metas, vecinos y actividades ficticias; la clave sale solo de `DEMO_CLAVE`. Solo para demo o evaluación. Ver Despliegue. |
 
 ## Reparto de apps
 
@@ -227,7 +227,8 @@ EC2 Amazon Linux 2023 · Nginx :80 → Gunicorn 127.0.0.1:8000 → MariaDB local
    las evidencias nunca tienen URL pública).
 6. Actualizar con lo último de `main`: `bash deploy/actualizar.sh`.
 7. Respaldos diarios con cron (en `/var/backups/terriia/`, fuera del proyecto): ver [docs/respaldo-recuperacion.md](docs/respaldo-recuperacion.md).
-8. **HTTPS: hoy el servidor atiende solo por HTTP y falta el certificado.** Cuando exista, activar el bloque 443 de nginx (hay un
+8. Datos de demostración (solo si se necesitan para evaluar): ver «Datos de demostración» más abajo (`DEMO_CLAVE` + `cargar_demo`).
+9. **HTTPS: hoy el servidor atiende solo por HTTP y falta el certificado.** Cuando exista, activar el bloque 443 de nginx (hay un
    ejemplo comentado en `deploy/nginx-terriia.conf`) y poner `DJANGO_HTTPS=True` en el `.env`: activa cookies de sesión y CSRF
    `Secure`, la redirección a https y HSTS. No activarlo antes (el sitio dejaría de funcionar).
 
@@ -236,7 +237,16 @@ EC2 Amazon Linux 2023 · Nginx :80 → Gunicorn 127.0.0.1:8000 → MariaDB local
 Aplicación web con el `venv` del proyecto, `.env` en la carpeta del proyecto y `DB_ENGINE=sqlite` (o la base MySQL de la cuenta).
 Define los archivos estáticos en la pestaña *Web* (`/static/` → carpeta `static/` tras `collectstatic`) y deja
 `EVIDENCIAS_X_ACCEL_PREFIX` vacío (no hay nginx propio: Django entrega la evidencia). Tras cada cambio, pulsa **Reload**. Cuidado con la
-sangría del archivo WSGI (ver incidencias).
+sangría del archivo WSGI (ver incidencias). Para la demostración, ver «Datos de demostración» más abajo (`cargar_demo`).
+
+### Datos de demostración (solo demo o evaluación)
+
+No usar en producción real: crea usuarios y datos ficticios (correos `@terriia.test`, funcionarios `DEMO-*`).
+
+1. Define `DEMO_CLAVE` en el `.env` (mínimo 8 caracteres; debe pasar las reglas de contraseña). No se escribe en el código.
+2. `python manage.py cargar_demo` (con el `venv` activo). Es idempotente: se puede repetir sin duplicar y nunca cambia la clave de un usuario existente.
+3. Todos los usuarios demo (administrador, jefe de delegaciones, alcaldesa, delegado, encargado de área y 3 funcionarios) usan la clave de `DEMO_CLAVE`. Los dashboards quedan con semáforo verde, ámbar y rojo.
+4. `python manage.py cargar_demo --borrar` borra solo los datos demo y los vuelve a cargar.
 
 ## Más documentación
 
