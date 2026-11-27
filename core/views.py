@@ -32,6 +32,7 @@ class MantenedorViewSet(viewsets.ModelViewSet):
     delegacion_related_lookups = ()
     funcionario_lookup = None
     delegado_lectura_global = False
+    funcionario_por_delegacion = False  # el Funcionario ve/crea solo dentro de su delegación
     campo_estado = "estado"  # nombre del campo que se desactiva
     valor_inactivo = None  # se deduce solo: False si es booleano, 'inactivo'/'inactiva' si es ENUM
     ordering_fields = "__all__"
@@ -48,13 +49,18 @@ class MantenedorViewSet(viewsets.ModelViewSet):
             if self.delegado_lectura_global:
                 return queryset
             return queryset.none()
+        if rol == Rol.FUNCIONARIO and self.funcionario_por_delegacion:
+            if self.delegacion_lookup and user.delegacion_id:
+                return queryset.filter(**{self.delegacion_lookup: user.delegacion_id})
+            return queryset.none()
         if rol == Rol.FUNCIONARIO and self.funcionario_lookup and user.funcionario_id:
             return queryset.filter(**{self.funcionario_lookup: user.funcionario_id})
         return queryset.none()
 
     def _validar_alcance_delegado(self, instancia):
         user = self.request.user
-        if rol_de_usuario(user) == Rol.DELEGADO_TERRITORIAL and self.delegacion_lookup:
+        roles = (Rol.DELEGADO_TERRITORIAL, Rol.FUNCIONARIO)
+        if rol_de_usuario(user) in roles and self.delegacion_lookup:
             pertenece = self.get_queryset().filter(pk=instancia.pk).exists()
             relacionados = all(
                 type(instancia)

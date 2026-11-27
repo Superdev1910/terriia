@@ -105,7 +105,12 @@ PAGINAS_POR_ROL = {
         "metas_individuales",
         "metas_cumplimiento_delegacion",
     },
-    Rol.FUNCIONARIO: {"personas_mi_perfil", "metas_mi_cumplimiento", *PAGINAS_ACTIVIDADES},
+    Rol.FUNCIONARIO: {
+        "personas_mi_perfil",
+        "metas_mi_cumplimiento",
+        "territorio_juntas",
+        *PAGINAS_ACTIVIDADES,
+    },
     Rol.ALCALDESA: {"metas_dashboard_ejecutivo", "metas_cumplimiento_delegacion"},
 }
 
@@ -170,7 +175,7 @@ def territorios(request):
     return pagina(request, "territorio_territorios", "territorios")
 
 
-@solo_roles(Rol.ADMINISTRADOR, Rol.DELEGADO_TERRITORIAL)
+@solo_roles(Rol.ADMINISTRADOR, Rol.DELEGADO_TERRITORIAL, Rol.FUNCIONARIO)
 @ensure_csrf_cookie
 def juntas(request):
     return pagina(request, "territorio_juntas", "juntas-vecinos")
