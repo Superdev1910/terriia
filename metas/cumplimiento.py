@@ -4,9 +4,7 @@ from datetime import datetime, time, timedelta
 from django.utils import timezone
 
 UMBRAL_CUMPLIDA = Decimal("80")
-TOPE_CUMPLIMIENTO = Decimal(
-    "150"
-)  # TODO(Valentina/Nicolás): unificar el tope (120 vs 150) en una sola constante
+TOPE_CUMPLIMIENTO = Decimal("150")  # Tope computable único (150%) de todo el sistema
 _CENTESIMAS = Decimal("0.01")
 
 

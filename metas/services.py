@@ -2,16 +2,15 @@ from datetime import date
 from decimal import Decimal
 from django.db.models import Count, Sum
 from atenciones.models import Actividad
-from .cumplimiento import _limites_del_periodo
+from .cumplimiento import TOPE_CUMPLIMIENTO, _limites_del_periodo
 from .models import Item, MetaDelegacion, MetaIndividual, Periodo
 
 
 class CalculoMetasService:
     """Servicio para calcular el cumplimiento de metas y evaluar el semáforo diario."""
 
-    TOPE_MAXIMO_COMPUTABLE = Decimal("120.00")  # Exigencia Evaluación 3
+    TOPE_MAXIMO_COMPUTABLE = TOPE_CUMPLIMIENTO  # alias del tope único (metas/cumplimiento.py)
     FACTOR_SEMAFORO_AMBAR = Decimal("0.80")
-    # TODO(Valentina/Nicolás): unificar el tope (120 vs 150) en una sola constante
 
     @staticmethod
     def calcular_porcentaje_esperado(periodo, fecha_evaluacion=None):
@@ -73,7 +72,7 @@ class CalculoMetasService:
                 }
             )
 
-        # Tope máximo computable del 120%
+        # Tope máximo computable (150%)
         cumplimiento_computable = min(cumplimiento_bruto_total, cls.TOPE_MAXIMO_COMPUTABLE)
         return items_calculados, cumplimiento_bruto_total, cumplimiento_computable
 
@@ -128,7 +127,7 @@ class CalculoMetasService:
         Calcula el avance de un funcionario para un período dado:
         - Solo considera actividades aprobadas (estado de verificación aprobada, pondera).
         - Pondera según el peso del ítem en el cargo.
-        - Aplica el tope máximo computable del 120%.
+        - Aplica el tope máximo computable (150%).
         """
         if fecha_evaluacion is None:
             fecha_evaluacion = date.today()
