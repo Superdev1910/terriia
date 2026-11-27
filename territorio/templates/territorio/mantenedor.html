@@ -31,5 +31,6 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 {{ entidad|json_script:"entidad" }}
-<script src="{% static 'territorio/js/mantenedor.js' %}?v=20261022-2"></script>
+{% if entidad == "juntas-vecinos" %}<script src="{% static 'territorio/js/miembros_junta.js' %}?v=20261127-1"></script>{% endif %}
+<script src="{% static 'territorio/js/mantenedor.js' %}?v=20261127-1"></script>
 {% endblock %}
