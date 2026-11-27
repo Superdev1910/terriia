@@ -22,3 +22,10 @@ def crear_admin():
 
 def crear_funcionario():
     return crear_usuario("func.territorio@terriia.cl", 12345678, Rol.FUNCIONARIO)
+
+
+def crear_funcionario_con_delegacion(delegacion):
+    usuario = crear_funcionario()
+    usuario.delegacion = delegacion
+    usuario.save(update_fields=["delegacion"])
+    return usuario

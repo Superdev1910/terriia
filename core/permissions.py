@@ -70,6 +70,45 @@ class IsAdministradorODelegadoLectura(BasePermission):
         )
 
 
+class IsAdministradorODelegadoOFuncionarioCrea(BasePermission):
+    """Admin y Delegado gestionan; el Funcionario con delegación solo consulta y crea (POST)."""
+
+    message = "No tiene permiso para realizar esta operación."
+    METODOS_FUNCIONARIO = ("GET", "HEAD", "OPTIONS", "POST")
+
+    def has_permission(self, request, view):
+        user = request.user
+        rol = rol_de_usuario(user)
+        if rol == Rol.ADMINISTRADOR:
+            return True
+        if rol == Rol.DELEGADO_TERRITORIAL:
+            return bool(user.delegacion_id)
+        return (
+            rol == Rol.FUNCIONARIO
+            and bool(user.delegacion_id)
+            and request.method in self.METODOS_FUNCIONARIO
+        )
+
+
+class IsAdministradorODelegadoOFuncionarioLectura(BasePermission):
+    """Admin y Delegado gestionan; el Funcionario con delegación solo consulta."""
+
+    message = "No tiene permiso para realizar esta operación."
+
+    def has_permission(self, request, view):
+        user = request.user
+        rol = rol_de_usuario(user)
+        if rol == Rol.ADMINISTRADOR:
+            return True
+        if rol == Rol.DELEGADO_TERRITORIAL:
+            return bool(user.delegacion_id)
+        return (
+            rol == Rol.FUNCIONARIO
+            and bool(user.delegacion_id)
+            and request.method in ("GET", "HEAD", "OPTIONS")
+        )
+
+
 class IsFuncionario(BasePermission):
     """Un Funcionario solo usa la vista de sus datos si tiene ficha asociada."""
 

@@ -222,6 +222,7 @@ class PantallasPorRolTests(EscenarioRolesMixin, APITestCase):
             {
                 "personas_mi_perfil",
                 "metas_mi_cumplimiento",
+                "territorio_juntas",
                 "atenciones_registrar",
                 "atenciones_mis_registros",
                 "atenciones_seguimiento",

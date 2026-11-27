@@ -1,6 +1,7 @@
 (function () {
   "use strict";
   const entidad = JSON.parse(document.getElementById("entidad").textContent);
+  const soloCrea = JSON.parse(document.getElementById("rolUsuario").textContent) === "Funcionario"; // el Funcionario solo lista y crea
   const cfg = {
     vecinos: { title: "Vecinos", url: "/api/vecinos/", pk: "id_vecino", estadoCampo: "estado", estados: [["activo", "Activos"], ["inactivo", "Inactivos"]], fields: [
       ["rut", "RUT", "text", true], ["nombres", "Nombres", "text", true], ["apellidos", "Apellidos", "text", true],
@@ -35,7 +36,7 @@
   function render(data) {
     $("tituloPagina").textContent = cfg.title; $("subtituloPagina").textContent = "Administre registros y conserve su historial.";
     $("cabeceraTabla").innerHTML = cfg.cols.map(c => `<th>${c[1]}</th>`).join("") + "<th>Acciones</th>";
-    $("cuerpoTabla").innerHTML = filas.map(row => `<tr>${cfg.cols.map(c => `<td>${esc(c[0] === "es_formal" || c[0] === "activo" || c[0] === "activa" ? (row[c[0]] ? "Sí" : "No") : row[c[0]])}</td>`).join("")}<td>${cfg.miembros ? `<button class="btn btn-texto miembros" data-id="${row[cfg.pk]}">Miembros</button>` : ""}<button class="btn btn-texto editar" data-id="${row[cfg.pk]}">Editar</button>${estaActivo(row[cfg.estadoCampo]) ? `<button class="btn btn-texto desactivar" data-id="${row[cfg.pk]}">Desactivar</button>` : ""}</td></tr>`).join("");
+    $("cuerpoTabla").innerHTML = filas.map(row => `<tr>${cfg.cols.map(c => `<td>${esc(c[0] === "es_formal" || c[0] === "activo" || c[0] === "activa" ? (row[c[0]] ? "Sí" : "No") : row[c[0]])}</td>`).join("")}<td>${soloCrea ? "" : `${cfg.miembros ? `<button class="btn btn-texto miembros" data-id="${row[cfg.pk]}">Miembros</button>` : ""}<button class="btn btn-texto editar" data-id="${row[cfg.pk]}">Editar</button>`}${!soloCrea && estaActivo(row[cfg.estadoCampo]) ? `<button class="btn btn-texto desactivar" data-id="${row[cfg.pk]}">Desactivar</button>` : ""}</td></tr>`).join("");
     $("total").textContent = `${data.count} registro(s)`; $("paginador").innerHTML = `<button class="btn btn-texto" ${data.previous ? "" : "disabled"} id="anterior">Anterior</button><span>Página ${pagina}</span><button class="btn btn-texto" ${data.next ? "" : "disabled"} id="siguiente">Siguiente</button>`;
     $("anterior").onclick = () => { pagina--; cargar(); }; $("siguiente").onclick = () => { pagina++; cargar(); };
     document.querySelectorAll(".editar").forEach(b => b.onclick = () => abrir(filas.find(r => String(r[cfg.pk]) === b.dataset.id)));
