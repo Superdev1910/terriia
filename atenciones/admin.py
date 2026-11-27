@@ -3,7 +3,7 @@ from django.db import transaction
 
 from core import auditoria
 
-from .models import Actividad, SubAtencion, TipoAtencion
+from .models import Actividad, SubAtencion, TipoAtencion, VisitaTerreno
 
 
 @admin.register(TipoAtencion)
@@ -55,3 +55,21 @@ class ActividadAdmin(admin.ModelAdmin):
         if obj is not None and obj.estado_verificacion == Actividad.VERIF_APROBADA:
             return False  # solo lectura
         return super().has_change_permission(request, obj)
+
+
+@admin.register(VisitaTerreno)
+class VisitaTerrenoAdmin(admin.ModelAdmin):
+    """Solo lectura: las visitas se registran por la API y no se corrigen."""
+
+    list_display = ["actividad", "tipo", "resultado", "usuario", "fecha"]
+    list_filter = ["tipo", "resultado"]
+    search_fields = ["actividad__codigo"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

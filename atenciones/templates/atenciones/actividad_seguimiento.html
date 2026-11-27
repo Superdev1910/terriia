@@ -3,7 +3,7 @@
 {% block titulo %}Seguimiento de actividades{% endblock %}
 {% block contenido %}
 <link rel="stylesheet" href="{% static 'atenciones/css/actividad.css' %}?v=20261121-2">
-<link rel="stylesheet" href="{% static 'atenciones/css/seguimiento.css' %}?v=20261124-1">
+<link rel="stylesheet" href="{% static 'atenciones/css/seguimiento.css' %}?v=20261127-1">
 <div class="encabezado-pagina">
   <div>
     <h1>Seguimiento de actividades</h1>
@@ -82,5 +82,5 @@
 {{ rol_codigo|json_script:"rolCodigo" }}
 {{ mi_funcionario|json_script:"miFuncionario" }}
 <script src="{% static 'atenciones/js/actividad_comun.js' %}?v=20261121-2"></script>
-<script src="{% static 'atenciones/js/actividad_seguimiento.js' %}?v=20261124-1"></script>
+<script src="{% static 'atenciones/js/actividad_seguimiento.js' %}?v=20261127-1"></script>
 {% endblock %}

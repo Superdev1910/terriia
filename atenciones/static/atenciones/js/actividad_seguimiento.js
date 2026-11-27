@@ -60,7 +60,8 @@
     { k: 'funcionario_nombre', t: 'Registró', orden: 'funcionario__nombre', v: (r) => esc(r.funcionario_nombre), excel: (r) => r.funcionario_nombre },
     { k: 'area_nombre', t: 'Área / responsable', v: (r) => (r.area_nombre ? `${esc(r.area_nombre)}<small>${esc(r.responsable_nombre || 'Sin responsable')}</small>` : '<span class="etiqueta no">Sin asignar</span>'), excel: (r) => [r.area_nombre, r.responsable_nombre].filter(Boolean).join(' / ') },
     { k: 'prioridad', t: 'Prioridad', orden: 'prioridad', v: (r) => etiquetaPrioridad(r.prioridad), excel: (r) => r.prioridad || '' },
-    { k: 'estado', t: 'Estado', orden: 'estado', v: (r) => etiquetaEstado(r.estado), excel: (r) => r.estado },
+    { k: 'estado', t: 'Estado', orden: 'estado', v: (r) => `${etiquetaEstado(r.estado)} ${etiquetaTerrenoLista(r)}`, excel: (r) => r.estado },
+    { k: 'terreno', t: 'Terreno', hidden: true, excel: (r) => (!r.requiere_terreno ? '' : r.terreno_cierre === 'conforme' ? 'Cierre OK' : r.terreno_inicial === 'conforme' ? 'Terreno OK' : 'Requiere terreno') },
     {
       k: 'fecha_compromiso', t: 'Compromiso', orden: 'fecha_compromiso',
       v: (r) => `${r.fecha_compromiso ? soloFecha(r.fecha_compromiso) : '<span class="etiqueta no">Sin fecha</span>'}<br>${etiquetaVencida(r)}`,
@@ -161,22 +162,23 @@
     if (!id) return;
     if (!sinFoco) disparador = document.activeElement;
     try {
-      const [r, historial, comentarios, evidencias] = await Promise.all([
+      const [r, historial, comentarios, evidencias, visitas] = await Promise.all([
         api(`${URL}${id}/`),
         api(`${URL}${id}/historial-seguimiento/`),
         api(`${URL}${id}/comentarios/`),
         api(`${URL_EVIDENCIAS}?actividad=${id}`),
+        api(`${URL}${id}/visitas-terreno/`),
       ]);
       detalle = r;
       opciones = null;
-      pintarDetalle(r, historial, comentarios, evidencias.results || evidencias);
+      pintarDetalle(r, historial, comentarios, evidencias.results || evidencias, visitas);
       $('panelFondo').hidden = false;
       if (!sinFoco) $('panelCerrar').focus();
     } catch (e) { alerta('error', 'No se pudo abrir la actividad', e.message); }
   }
   function cerrarDetalle() { $('panelFondo').hidden = true; detalle = null; if (disparador && disparador.focus) disparador.focus(); }
 
-  function pintarDetalle(r, historial, comentarios, evidencias) {
+  function pintarDetalle(r, historial, comentarios, evidencias, visitas) {
     $('panelTitulo').textContent = `Actividad ${r.codigo}`;
     const cerrada = estaCerrada(r);
     const botones = [];
@@ -192,7 +194,7 @@
       ${r.estado_verificacion === 'aprobada' ? '<p class="aviso-vencida" style="background:var(--verde-claro);border-color:var(--verde)"><i class="bi bi-lock-fill"></i> La actividad está <strong>aprobada</strong>: no admite más cambios. Todavía se puede comentar.</p>' : ''}
       <section aria-label="Datos">
         <dl class="ficha">
-          ${fila('Estado', etiquetaEstado(r.estado))}
+          ${fila('Estado', `${etiquetaEstado(r.estado)} ${etiquetaTerrenoLista(r)}`)}
           ${fila('Verificación', badge(r.estado_verificacion))}
           ${fila('Prioridad', etiquetaPrioridad(r.prioridad))}
           ${fila('Área', esc(r.area_nombre || 'Sin asignar'))}
@@ -211,6 +213,7 @@
         <div><h3>Descripción</h3><p class="texto" style="white-space:pre-wrap;margin:0">${esc(r.descripcion) || '—'}</p></div>
         ${botones.length ? `<div class="barra-acciones">${botones.join('')}</div>` : ''}
       </section>
+      ${r.requiere_terreno ? seccionTerreno(r, visitas) : ''}
       <section aria-label="Evidencias"><h3><i class="bi bi-camera"></i> Evidencia fotográfica (${evidencias.length})</h3>
         ${evidencias.length ? `<ul class="evidencias">${evidencias.map((e) => `<li>${e.tiene_imagen ? `<a href="${esc(e.descarga)}" target="_blank" rel="noopener"><img src="${esc(e.descarga)}" alt="Evidencia ${esc(e.codigo_verificador)}" loading="lazy"></a>` : `<a href="${esc(e.descarga)}" download>${esc(e.nombre_original || 'Archivo')}</a>`}<span class="codigo">${esc(e.codigo_verificador)}</span><br>${fechaHora(e.fecha)}</li>`).join('')}</ul>` : '<p class="vacio">Aún no hay fotos de respaldo.</p>'}
         ${puedeSubir ? `<form class="form-linea" id="formEvidencia">
@@ -336,6 +339,71 @@
     });
     if (valores) enviarAccion('fecha-compromiso', valores, 'Fecha de compromiso actualizada');
   }
+  /* ---------------- Verificación en terreno (HU29) ---------------- */
+  const RES_TERRENO = { conforme: ['Conforme', 'bi-check-circle-fill', 'est-realizado'], no_conforme: ['No conforme', 'bi-x-circle-fill', 'pri-alta'] };
+  const etiquetaResultado = (v) => { const [t, i, c] = RES_TERRENO[v] || [v, 'bi-dash', 'no']; return `<span class="etiqueta ${c}"><i class="bi ${i}" aria-hidden="true"></i> ${esc(t)}</span>`; };
+  // Insignia del listado: el texto y el icono dicen el estado, no solo el color.
+  function etiquetaTerrenoLista(r) {
+    if (!r.requiere_terreno) return '';
+    if (r.terreno_cierre === 'conforme') return '<span class="etiqueta est-realizado"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> Cierre OK</span>';
+    if (r.terreno_inicial === 'conforme') return '<span class="etiqueta est-proceso"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i> Terreno OK</span>';
+    return '<span class="etiqueta est-pendiente"><i class="bi bi-geo-alt" aria-hidden="true"></i> Requiere terreno</span>';
+  }
+  const estadoTerreno = (v) => (v ? etiquetaResultado(v) : '<span class="etiqueta no">Sin visita</span>');
+  function seccionTerreno(r, visitas) {
+    const lista = visitas.length
+      ? `<ul class="lista-simple">${visitas.map((v) => `<li><strong>${esc(v.tipo_nombre)}</strong> ${etiquetaResultado(v.resultado)}
+          ${v.observacion ? `<span class="texto">${esc(v.observacion)}</span>` : ''}
+          <small>${esc(v.usuario_nombre)} · ${fechaHora(v.fecha)}${v.latitud !== null && v.longitud !== null ? ` · ${esc(v.latitud)}, ${esc(v.longitud)}` : ''}${v.descarga ? ` · <a href="${esc(v.descarga)}" download><i class="bi bi-paperclip"></i> Archivo</a>` : ''}</small></li>`).join('')}</ul>`
+      : '<p class="vacio">Aún no hay visitas a terreno.</p>';
+    return `<section aria-label="Verificación en terreno"><h3><i class="bi bi-geo-alt"></i> Verificación en terreno (${visitas.length})</h3>
+      <p class="terreno-estados"><span>Terreno: ${estadoTerreno(r.terreno_inicial)}</span> <span>Cierre: ${estadoTerreno(r.terreno_cierre)}</span></p>
+      ${lista}
+      ${r.puede_registrar_visita ? '<div class="barra-acciones"><button type="button" class="btn btn-primario" data-op="visita"><i class="bi bi-plus-lg"></i> Registrar visita</button></div>' : ''}
+    </section>`;
+  }
+  async function accionVisita() {
+    const r = detalle;
+    const tipoInicial = r.terreno_inicial === 'conforme' ? 'cierre' : 'inicial';
+    const valores = await formularioSwal({
+      titulo: 'Registrar visita a terreno',
+      confirmar: 'Registrar visita',
+      html: campoSwal('swTipo', 'Tipo *', `<select id="swTipo">${opcionesHTML([{ id: 'inicial', nombre: 'Verificación en terreno' }, { id: 'cierre', nombre: 'Verificación de cierre' }], tipoInicial)}</select>`)
+        + campoSwal('swResultado', 'Resultado *', `<select id="swResultado">${opcionesHTML([{ id: 'conforme', nombre: 'Conforme' }, { id: 'no_conforme', nombre: 'No conforme' }], 'conforme')}</select>`)
+        + campoSwal('swObs', 'Observación (obligatoria si no es conforme)', '<textarea id="swObs" rows="3" maxlength="1000"></textarea>')
+        + campoSwal('swArchivo', 'Foto o PDF (opcional, máx. 5 MB)', '<input id="swArchivo" type="file" accept="image/jpeg,image/png,application/pdf">')
+        + '<div><button type="button" class="btn btn-borde" id="swUbicacion"><i class="bi bi-crosshair"></i> Usar mi ubicación</button> <span id="swCoords" class="vacio" aria-live="polite"></span></div>'
+        + '<input id="swLat" type="hidden"><input id="swLng" type="hidden">',
+      alAbrir: () => {
+        $('swUbicacion').addEventListener('click', () => {
+          if (!navigator.geolocation) { $('swCoords').textContent = 'Tu navegador no entrega la ubicación.'; return; }
+          $('swCoords').textContent = 'Obteniendo ubicación…';
+          navigator.geolocation.getCurrentPosition((pos) => {
+            $('swLat').value = pos.coords.latitude.toFixed(6);
+            $('swLng').value = pos.coords.longitude.toFixed(6);
+            $('swCoords').textContent = `Ubicación: ${$('swLat').value}, ${$('swLng').value}`;
+          }, () => { $('swCoords').textContent = 'No se pudo obtener la ubicación (es opcional; puedes continuar).'; },
+          { enableHighAccuracy: true, timeout: 10000 });
+        });
+      },
+      leer: () => {
+        const resultado = $('swResultado').value, obs = $('swObs').value.trim();
+        if (resultado === 'no_conforme' && !obs) return { error: 'Indica la observación: es obligatoria si la visita no es conforme.' };
+        const datos = new FormData();
+        datos.append('tipo', $('swTipo').value); datos.append('resultado', resultado);
+        if (obs) datos.append('observacion', obs);
+        if ($('swLat').value) { datos.append('latitud', $('swLat').value); datos.append('longitud', $('swLng').value); }
+        const archivo = $('swArchivo').files[0];
+        if (archivo) datos.append('archivo', archivo);
+        return { datos };
+      },
+    });
+    if (!valores) return;
+    try {
+      await api(`${URL}${detalle.id_actividad}/visitas-terreno/`, { method: 'POST', body: valores });
+      await recargarTrasAccion('Visita registrada');
+    } catch (e) { alerta('error', 'No se pudo registrar la visita', e.message); }
+  }
   async function accionMotivo() {
     const valores = await formularioSwal({
       titulo: 'Motivo de atraso', confirmar: 'Guardar motivo',
@@ -386,6 +454,7 @@
     else if (b.dataset.op === 'asignar') accionAsignar();
     else if (b.dataset.op === 'fecha') accionFecha();
     else if (b.dataset.op === 'motivo') accionMotivo();
+    else if (b.dataset.op === 'visita') accionVisita();
   });
   $('panelCuerpo').addEventListener('submit', async (e) => {
     e.preventDefault();

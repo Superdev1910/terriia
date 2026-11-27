@@ -60,6 +60,31 @@ Fuera de la delegación, la lectura responde 404 y las operaciones 403, igual qu
 | Acciones | `/api/actividades/<id>/{asignar,cambiar-estado,fecha-compromiso,motivo-atraso,historial-seguimiento,comentarios,opciones-seguimiento}/` |
 | Listado y cifras | `/api/actividades/` (`?vencida=true`, `prioridad`, `responsable`, `estado`, `ordering=fecha_compromiso`) y `/api/actividades/resumen/` |
 
+## Verificación en terreno del Tubo (HU29, SCRUM-32)
+Aplica **solo** a las solicitudes con `ingreso_a_tubo=True`; las demás se comportan como siempre. Es independiente de
+`estado_verificacion` (aprobar / rechazar), del tope del 120 % y de las metas.
+
+Flujo: 1) se registra el vecino; 2) se genera la solicitud (Ingresado); 3) alguien va a terreno y registra la visita **inicial**;
+4) con la inicial *conforme* se da el servicio (asignar, Pendiente / En proceso); 5) se registra la visita de **cierre**; 6) solo con el
+cierre *conforme* se puede pasar a Realizado.
+
+- Modelo `VisitaTerreno` (tabla `visita_terreno`, migración `0007_visita_terreno`): tipo `inicial` | `cierre`, resultado
+  `conforme` | `no_conforme`, observación (obligatoria si no es conforme), fecha, usuario, latitud / longitud opcionales
+  (-90..90 y -180..180) y archivo opcional (JPG, PNG o PDF, 5 MB, validado por firma, nombre uuid, sin URL pública).
+- `POST/GET /api/actividades/<id>/visitas-terreno/` (multipart) y `GET /api/visitas-terreno/<id>/archivo/` (descarga con control de
+  alcance; usa `EVIDENCIAS_X_ACCEL_PREFIX` igual que las evidencias).
+- Quién registra: Delegado, Encargado, Jefe de delegaciones y Administrador (con alcance) y el **responsable asignado**. Otro
+  funcionario o la Alcaldesa: 403; otra delegación: 404; actividad Realizada o aprobada: 409.
+- Reglas (409 si no se cumplen): salir de Ingresado exige una inicial conforme (**asignar sí se permite en Ingresado**, porque el
+  responsable es quien va a terreno); pasar a Realizado exige un cierre conforme registrado **después** de la última inicial conforme;
+  el cierre exige una inicial conforme previa y se hace con el servicio Pendiente o En proceso. Un cierre no conforme deja la
+  solicitud abierta.
+- Cada visita queda en `actividad_historial` (campo `visita_terreno`) y en `auditoria` (evento `visita_terreno`).
+- La API de actividades agrega `requiere_terreno`, `terreno_inicial`, `terreno_cierre` y `puede_registrar_visita`. En la pantalla de
+  Seguimiento aparece la tarjeta «Verificación en terreno» con el botón «Registrar visita» (incluye «Usar mi ubicación», opcional) y
+  una insignia en el listado: «Requiere terreno», «Terreno OK» o «Cierre OK».
+- Pruebas: `atenciones/tests/test_verificacion_terreno.py`.
+
 ## Pruebas
 `python manage.py test atenciones`: 72 pruebas del seguimiento en `atenciones/tests/test_seguimiento_*.py`, además de las de
 Patricio. Detalle caso por caso en `docs/casos-prueba-seguimiento.md`.
