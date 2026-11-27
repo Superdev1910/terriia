@@ -12,6 +12,7 @@ import string
 import uuid
 
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
@@ -196,7 +197,8 @@ class Actividad(models.Model):
     accion = models.CharField(max_length=255, blank=True, default="")
     contacto = models.CharField(max_length=150, blank=True, default="")
     telefono = models.CharField(max_length=20, blank=True, default="")
-    ingreso_a_tubo = models.BooleanField(default=False)  # TODO(Brian): flujo del Tubo
+    # Solicitud del Tubo: exige verificación en terreno (VisitaTerreno) antes de avanzar y de cerrar.
+    ingreso_a_tubo = models.BooleanField(default=False)
     es_coordinacion_preparatoria = models.BooleanField(default=False)
     origen = models.CharField(max_length=11, choices=ORIGENES, default=ORIGEN_FUNCIONARIO)
     delegado_solicitante = models.ForeignKey(
@@ -374,6 +376,12 @@ def ruta_evidencia(instancia, nombre_archivo):
     return f"evidencias/{timezone.localdate().year}/{uuid.uuid4().hex}{extension}"
 
 
+def ruta_visita_terreno(instancia, nombre_archivo):
+    """Igual que las evidencias (uuid, nunca el nombre del usuario, sin URL pública)."""
+    extension = os.path.splitext(nombre_archivo)[1].lower()
+    return f"evidencias/terreno/{timezone.localdate().year}/{uuid.uuid4().hex}{extension}"
+
+
 def generar_codigo_verificador():
     """3 letras mayúsculas + 3 dígitos (ej. ORC711)."""
     letras = "".join(secrets.choice(string.ascii_uppercase) for _ in range(3))
@@ -459,10 +467,12 @@ class ActividadHistorial(models.Model):
     """
 
     ESTADO, FECHA_COMPROMISO, MOTIVO_ATRASO = "estado", "fecha_compromiso", "motivo_atraso"
+    VISITA_TERRENO = "visita_terreno"
     CAMPOS = [
         (ESTADO, "Estado"),
         (FECHA_COMPROMISO, "Fecha de compromiso"),
         (MOTIVO_ATRASO, "Motivo de atraso"),
+        (VISITA_TERRENO, "Verificación en terreno"),
     ]
 
     id_historial = models.AutoField(primary_key=True)
@@ -517,3 +527,62 @@ class Comentario(models.Model):
 
     def __str__(self):
         return f"Comentario {self.id_comentario} de la actividad {self.actividad_id}"
+
+
+class VisitaTerreno(models.Model):
+    """Tabla `visita_terreno`: verificación en terreno de una solicitud del Tubo (HU29).
+
+    `inicial` se hace antes de dar servicio y `cierre` después, antes de cerrar la solicitud.
+    Solo se agregan: no se editan ni se borran. El archivo se baja por la API, sin URL pública.
+    """
+
+    INICIAL, CIERRE = "inicial", "cierre"
+    TIPOS = [(INICIAL, "Verificación en terreno"), (CIERRE, "Verificación de cierre")]
+    CONFORME, NO_CONFORME = "conforme", "no_conforme"
+    RESULTADOS = [(CONFORME, "Conforme"), (NO_CONFORME, "No conforme")]
+
+    id_visita = models.AutoField(primary_key=True)
+    actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.PROTECT,
+        db_column="id_actividad",
+        related_name="visitas_terreno",
+    )
+    tipo = models.CharField(max_length=7, choices=TIPOS)
+    resultado = models.CharField(max_length=11, choices=RESULTADOS)
+    observacion = models.TextField(blank=True, default="")
+    fecha = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(
+        "personas.Usuario",
+        on_delete=models.PROTECT,
+        db_column="usuario_id",
+        related_name="visitas_terreno",
+    )
+    latitud = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+    )
+    longitud = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+    )
+    archivo = models.FileField(upload_to=ruta_visita_terreno, max_length=255, blank=True)
+    nombre_original = models.CharField(max_length=150, blank=True, default="")
+    tipo_contenido = models.CharField(max_length=30, blank=True, default="")
+    tamano = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "visita_terreno"
+        ordering = ["fecha", "id_visita"]
+        verbose_name = "visita a terreno"
+        verbose_name_plural = "visitas a terreno"
+        indexes = [models.Index(fields=["actividad", "tipo"], name="ix_visita_actividad_tipo")]
+
+    def __str__(self):
+        return f"Visita {self.tipo} ({self.resultado}) de la actividad {self.actividad_id}"
