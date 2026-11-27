@@ -60,11 +60,11 @@ def validar_fecha(fecha, funcionario, excluir_pk=None, ahora=None):
 
 
 def vecino_pertenece_a_delegacion(vecino, delegacion_id):
-    """El vecino no tiene delegación propia (tabla de otra app): se deduce de sus actividades.
-
-    Es de la delegación si ya fue atendido en ella; si nunca fue atendido en ninguna, está libre.
-    TODO(Pamela): reemplazar por vecino.delegacion si se agrega ese campo al modelo Vecino.
-    """
+    """Con vecino.delegacion definida, manda ella. Si es nula (vecinos antiguos sin actividades),
+    se deduce de sus actividades: es de la delegación si ya fue atendido en ella; si nunca fue
+    atendido en ninguna, está libre."""
+    if vecino.delegacion_id is not None:
+        return vecino.delegacion_id == delegacion_id
     registros = vecino.actividades.all()
     if not registros.exists():
         return True

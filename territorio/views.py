@@ -2,16 +2,21 @@ from django.db import transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from core import auditoria
+from core.models import Rol
 from core.views import MantenedorViewSet
 from core.permissions import (
-    IsAdministradorODelegado,
+    IsAdministradorODelegadoOFuncionarioAgrega,
     IsAdministradorODelegadoOFuncionarioCrea,
     IsAdministradorODelegadoOFuncionarioLectura,
     IsOperativoCreaVecinos,
+    rol_de_usuario,
 )
+
+from organizacion.paginacion import PaginacionMantenedor
 
 from .models import JuntaVecinos, MiembroJunta, Territorio, Vecino
 from .serializers import (
@@ -23,8 +28,9 @@ from .serializers import (
 
 
 class VecinoViewSet(MantenedorViewSet):
-    # Vecino no tiene delegación: crear lo hacen los roles operativos (desde Registrar actividad);
-    # listar, editar y desactivar siguen siendo del Administrador.
+    # Crear lo hacen los roles operativos (desde Registrar actividad); listar, editar y
+    # desactivar siguen siendo del Administrador. La delegación del vecino la fija el servidor
+    # con la del usuario; solo el acceso global (Administrador, Jefe) puede indicarla.
     permission_classes = [IsOperativoCreaVecinos]
     queryset = Vecino.objects.prefetch_related(
         Prefetch("membresias", queryset=MiembroJunta.objects.select_related("junta"))
@@ -35,6 +41,15 @@ class VecinoViewSet(MantenedorViewSet):
     ordering_fields = "__all__"
     campo_estado = "estado"
     valor_inactivo = Vecino.INACTIVO
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if rol_de_usuario(user) in (Rol.ADMINISTRADOR, Rol.JEFE_DELEGACIONES):
+            return super().perform_create(serializer)
+        # Se ignora cualquier delegación enviada por el cliente.
+        with transaction.atomic():
+            instancia = serializer.save(delegacion_id=user.delegacion_id)
+            auditoria.registrar(user, "crear", instancia, nuevo=auditoria.foto(instancia))
 
 
 class TerritorioViewSet(MantenedorViewSet):
@@ -53,6 +68,7 @@ class TerritorioViewSet(MantenedorViewSet):
 class JuntaVecinosViewSet(MantenedorViewSet):
     permission_classes = [IsAdministradorODelegadoOFuncionarioCrea]
     funcionario_por_delegacion = True
+    pagination_class = PaginacionMantenedor  # acepta page_size (hasta 100) para llenar selects
     delegacion_lookup = "territorio__delegacion_id"
     queryset = JuntaVecinos.objects.select_related(
         "territorio", "territorio__delegacion"
@@ -84,7 +100,8 @@ class MiembroJuntaViewSet(MantenedorViewSet):
     """Membresía y dirigencia de las juntas. DELETE = desactivar (estado inactivo + fecha_salida),
     igual que los demás mantenedores con estado; el Delegado solo ve juntas de su delegación."""
 
-    permission_classes = [IsAdministradorODelegado]
+    permission_classes = [IsAdministradorODelegadoOFuncionarioAgrega]
+    funcionario_por_delegacion = True
     delegacion_lookup = "junta__territorio__delegacion_id"
     queryset = MiembroJunta.objects.select_related("junta", "vecino").all()
     serializer_class = MiembroJuntaSerializer
@@ -93,6 +110,16 @@ class MiembroJuntaViewSet(MantenedorViewSet):
     ordering_fields = "__all__"
     campo_estado = "estado"
     valor_inactivo = MiembroJunta.INACTIVO
+
+    def perform_create(self, serializer):
+        if rol_de_usuario(self.request.user) == Rol.FUNCIONARIO:
+            # El Funcionario solo suma socios; los cargos directivos son del Delegado/Admin.
+            if serializer.validated_data.get("cargo") != MiembroJunta.SOCIO:
+                raise PermissionDenied("El funcionario solo puede agregar socios a una junta.")
+            junta = serializer.validated_data["junta"]
+            if junta.territorio.delegacion_id != self.request.user.delegacion_id:
+                raise PermissionDenied("La junta debe pertenecer a tu delegación.")
+        super().perform_create(serializer)
 
     def destroy(self, request, *args, **kwargs):
         miembro = self.get_object()

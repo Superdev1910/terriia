@@ -169,3 +169,10 @@ class IsOperativoCreaVecinos(BasePermission):
         if request.method == "POST":
             return rol_de_usuario(request.user) in self.ROLES_CREAN
         return tiene_rol(request.user, Rol.ADMINISTRADOR)
+
+
+class IsAdministradorODelegadoOFuncionarioAgrega(IsAdministradorODelegadoOFuncionarioCrea):
+    """Membresías: Admin y Delegado gestionan; el Funcionario con delegación consulta y agrega
+    (POST). Que sea solo cargo socio y de su delegación lo valida la vista."""
+
+    message = "No tiene permiso para realizar esta operación."

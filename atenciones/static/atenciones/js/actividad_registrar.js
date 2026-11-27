@@ -84,7 +84,9 @@
       $('rut').value = v.rut;
       $('contacto').value = `${v.nombres} ${v.apellidos}`.trim();
       $('telefono').value = v.telefono || '';
-      $('ayudaRut').textContent = 'Vecino encontrado: datos completados.';
+      const juntas = (v.juntas || []).filter(Boolean);
+      $('ayudaRut').textContent = 'Vecino encontrado: datos completados.' +
+        (juntas.length ? ` Miembro de: ${juntas.join(', ')}.` : '');
     } catch (e) {
       if (e.status === 404) {
         $('ayudaRut').textContent = 'Vecino no registrado: complete sus datos para registrarlo.';
@@ -130,7 +132,11 @@
       let datos = null;
       try { datos = await resp.json(); } catch (e) { datos = null; }
       if (!resp.ok) {
-        error.textContent = resp.status === 403 ? 'No tiene permiso para registrar vecinos.' : mensajeErrores(datos);
+        const duplicado = resp.status === 400 && datos && Array.isArray(datos.rut) &&
+          datos.rut.some((m) => /ya existe/i.test(m));
+        error.textContent = resp.status === 403 ? 'No tiene permiso para registrar vecinos.' :
+          duplicado ? 'Ese RUT ya está registrado en otra delegación; pida al delegado o administrador que lo revise.' :
+          mensajeErrores(datos);
         return false;
       }
       vecinoId = datos.id_vecino;
@@ -167,6 +173,18 @@
       ingreso_a_tubo: $('ingreso_a_tubo').checked,
     };
   }
+  // Suma al vecino como socio de la junta elegida; un "ya es miembro" cuenta como éxito.
+  async function vincularJunta(junta, vecino) {
+    try {
+      await api('/api/miembros-junta/', {
+        method: 'POST', body: JSON.stringify({ junta, vecino, cargo: 'socio' }),
+      });
+      return 'Vecino vinculado a la junta como socio.';
+    } catch (err) {
+      if (err.status === 400) return 'El vecino ya era miembro de la junta.';
+      return `No se pudo vincular a la junta: ${err.message}`;
+    }
+  }
   async function guardar(e) {
     e.preventDefault();
     limpiarErrores();
@@ -183,11 +201,14 @@
         datos.contacto = $('contacto').value.trim();
         datos.telefono = $('telefono').value.trim();
       }
+      const juntaId = $('junta').value ? Number($('junta').value) : null;
       const r = await api('/api/actividades/', { method: 'POST', body: JSON.stringify(datos) });
+      const aviso_junta = juntaId && vecinoId ? await vincularJunta(juntaId, vecinoId) : '';
       const aviso = r.pondera ? '' :
         `<p class="aviso-cascada"><i class="bi bi-exclamation-triangle"></i> <strong>No pondera:</strong> ${esc(r.motivo_no_pondera)}</p>`;
       await alerta(r.pondera ? 'success' : 'warning', 'Registro guardado',
-        `<p>Código: <strong class="mono">${esc(r.codigo)}</strong></p>${aviso}`);
+        `<p>Código: <strong class="mono">${esc(r.codigo)}</strong></p>${aviso}` +
+        (aviso_junta ? `<p>${esc(aviso_junta)}</p>` : ''));
       $('formActividad').reset(); vecinoId = null; mostrarPanelVecino(false); $('ayudaRut').textContent = AYUDA_RUT; $('fecha').value = fechaLocalActual(); pintarTipos();
     } catch (err) {
       if (!(err.campo && marcarError(err.campo, err.message))) {
@@ -196,6 +217,16 @@
         alerta('error', 'No se pudo guardar', esc(err.message));
       }
     } finally { $('btnGuardar').disabled = false; }
+  }
+
+  // Las juntas son opcionales: si no se pueden listar (rol sin acceso), se oculta el campo.
+  async function cargarJuntas() {
+    try {
+      const r = await api('/api/juntas-vecinos/?page_size=100&activa=true');
+      llenar('junta', r.results || [], 'Sin junta', 'id_junta_vecinos', 'nombre');
+    } catch (e) {
+      $('campoJunta').hidden = true;
+    }
   }
 
   async function iniciar() {
@@ -210,6 +241,7 @@
     llenar('item', OPCIONES.items, 'Seleccione…', 'id_item', 'nombre');
     llenar('territorio', OPCIONES.territorios, 'Sin territorio', 'id_territorio', 'nombre');
     llenar('area', OPCIONES.areas, 'Sin área', 'id_area', 'texto');
+    cargarJuntas();
     $('area').addEventListener('change', pintarTipos);
     $('tipo_atencion').addEventListener('change', pintarSubs);
     $('rut').addEventListener('blur', buscarRut);

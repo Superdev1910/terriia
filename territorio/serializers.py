@@ -7,6 +7,7 @@ from .models import JuntaVecinos, MiembroJunta, Territorio, Vecino
 
 
 class VecinoSerializer(serializers.ModelSerializer):
+    delegacion_nombre = serializers.CharField(source="delegacion.nombre", read_only=True)
     juntas = serializers.SerializerMethodField()
 
     def get_juntas(self, obj):
@@ -24,6 +25,8 @@ class VecinoSerializer(serializers.ModelSerializer):
             "telefono",
             "direccion",
             "estado",
+            "delegacion",
+            "delegacion_nombre",
             "juntas",
         ]
         extra_kwargs = {"rut": {"validators": []}}

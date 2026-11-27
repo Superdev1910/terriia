@@ -1,12 +1,17 @@
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Auditoria
+from core.models import Auditoria, Rol
+from organizacion.models import Delegacion
+
 from ..models import Vecino
-
-from core.models import Rol
-
-from .utiles import crear_admin, crear_funcionario, crear_usuario, rut_valido
+from .utiles import (
+    crear_admin,
+    crear_funcionario,
+    crear_funcionario_con_delegacion,
+    crear_usuario,
+    rut_valido,
+)
 
 
 class VecinoTests(APITestCase):
@@ -157,3 +162,38 @@ class VecinoCreacionOperativaTests(APITestCase):
         self.assertEqual(
             self.client.post(self.url, self.datos()).status_code, status.HTTP_403_FORBIDDEN
         )
+
+
+class VecinoDelegacionTests(APITestCase):
+    """El vecino queda en la delegación de quien lo registra; solo el acceso global la elige."""
+
+    url = "/api/vecinos/"
+
+    def setUp(self):
+        self.d1 = Delegacion.objects.create(codigo="D91", nombre="Delegación uno")
+        self.d2 = Delegacion.objects.create(codigo="D92", nombre="Delegación dos")
+
+    def datos(self, **extra):
+        data = {"rut": rut_valido(15667777), "nombres": "Ana", "apellidos": "Pérez"}
+        data.update(extra)
+        return data
+
+    def test_funcionario_crea_en_su_delegacion_e_ignora_la_del_cliente(self):
+        self.client.force_authenticate(crear_funcionario_con_delegacion(self.d1))
+        r = self.client.post(self.url, self.datos(delegacion=self.d2.pk))
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        self.assertEqual(r.data["delegacion"], self.d1.pk)
+        self.assertEqual(r.data["delegacion_nombre"], "Delegación uno")
+        self.assertEqual(Vecino.objects.get().delegacion, self.d1)
+
+    def test_administrador_puede_indicar_la_delegacion(self):
+        self.client.force_authenticate(crear_admin())
+        r = self.client.post(self.url, self.datos(delegacion=self.d2.pk))
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        self.assertEqual(Vecino.objects.get().delegacion, self.d2)
+
+    def test_administrador_puede_omitir_la_delegacion(self):
+        self.client.force_authenticate(crear_admin())
+        r = self.client.post(self.url, self.datos())
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+        self.assertIsNone(Vecino.objects.get().delegacion)

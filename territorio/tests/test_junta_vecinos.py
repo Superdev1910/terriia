@@ -147,10 +147,10 @@ class JuntaVecinosFuncionarioTests(APITestCase):
         self.j_propia.refresh_from_db()
         self.assertTrue(self.j_propia.activa)
 
-    def test_no_gestiona_miembros(self):
-        self.assertEqual(self.client.get("/api/miembros-junta/").status_code, 403)
-        r = self.client.post("/api/miembros-junta/", {"junta": self.j_propia.pk})
-        self.assertEqual(r.status_code, 403)
+    def test_miembros_solo_consulta_y_suma_socios(self):
+        # Ver y agregar socios sí; el detalle de reglas está en MiembroJuntaFuncionarioTests.
+        self.assertEqual(self.client.get("/api/miembros-junta/").status_code, 200)
+        self.assertEqual(self.client.delete("/api/miembros-junta/1/").status_code, 403)
 
     def test_territorios_solo_lectura_de_su_delegacion(self):
         r = self.client.get("/api/territorios/")

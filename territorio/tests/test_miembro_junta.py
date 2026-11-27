@@ -7,10 +7,16 @@ from core.models import Auditoria, Rol
 from organizacion.models import Delegacion
 
 from ..models import JuntaVecinos, MiembroJunta, Territorio, Vecino
-from .utiles import crear_admin, crear_funcionario, crear_usuario, rut_valido
+from .utiles import (
+    crear_admin,
+    crear_funcionario,
+    crear_funcionario_con_delegacion,
+    crear_usuario,
+    rut_valido,
+)
 
 
-class MiembroJuntaTests(APITestCase):
+class MiembroJuntaBase(APITestCase):
     url = "/api/miembros-junta/"
 
     def setUp(self):
@@ -40,6 +46,8 @@ class MiembroJuntaTests(APITestCase):
         datos.update(extra)
         return self.client.post(self.url, datos)
 
+
+class MiembroJuntaTests(MiembroJuntaBase):
     def test_agregar_miembro_y_auditar(self):
         response = self.agregar(self.v1, "presidente")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
@@ -194,3 +202,48 @@ class MiembroJuntaTests(APITestCase):
         self.assertEqual(response.data["fecha_ingreso"], date.today().isoformat())
         manana = (date.today() + timedelta(days=1)).isoformat()
         self.assertEqual(self.agregar(self.v2, fecha_ingreso=manana).status_code, 201)
+
+
+class MiembroJuntaFuncionarioTests(MiembroJuntaBase):
+    """El Funcionario solo suma socios en juntas de su delegación (desde Registrar actividad)."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(crear_funcionario_con_delegacion(self.delegacion))
+
+    def test_agrega_socio_en_su_junta(self):
+        r = self.agregar(self.v1, "socio")
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED, r.data)
+
+    def test_socio_repetido_da_400(self):
+        self.agregar(self.v1, "socio")
+        self.assertEqual(self.agregar(self.v1, "socio").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_no_asigna_cargos_directivos(self):
+        for cargo in ("presidente", "secretario", "tesorero"):
+            r = self.agregar(self.v1, cargo)
+            self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN, (cargo, r.data))
+        self.assertFalse(MiembroJunta.objects.exists())
+
+    def test_no_agrega_en_junta_de_otra_delegacion(self):
+        r = self.agregar(self.v1, "socio", junta=self.junta_otra)
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN, r.data)
+        self.assertFalse(MiembroJunta.objects.exists())
+
+    def test_no_modifica_ni_desactiva(self):
+        miembro = MiembroJunta.objects.create(junta=self.junta, vecino=self.v1, cargo="socio")
+        detalle = f"{self.url}{miembro.pk}/"
+        self.assertEqual(
+            self.client.patch(detalle, {"cargo": "presidente"}).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(self.client.delete(detalle).status_code, status.HTTP_403_FORBIDDEN)
+        miembro.refresh_from_db()
+        self.assertEqual((miembro.cargo, miembro.estado), ("socio", MiembroJunta.ACTIVO))
+
+    def test_lista_solo_miembros_de_su_delegacion(self):
+        MiembroJunta.objects.create(junta=self.junta, vecino=self.v1, cargo="socio")
+        MiembroJunta.objects.create(junta=self.junta_otra, vecino=self.v2, cargo="socio")
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual([m["vecino"] for m in r.data["results"]], [self.v1.pk])

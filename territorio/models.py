@@ -19,6 +19,14 @@ class Vecino(models.Model):
     telefono = models.CharField(max_length=20, blank=True, default="")
     direccion = models.CharField(max_length=255, blank=True, default="")
     estado = models.CharField(max_length=8, choices=ESTADOS, default=ACTIVO)
+    delegacion = models.ForeignKey(
+        Delegacion,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        db_column="id_delegacion",
+        related_name="vecinos",
+    )
 
     class Meta:
         db_table = "vecino"

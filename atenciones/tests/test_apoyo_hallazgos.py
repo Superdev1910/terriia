@@ -199,6 +199,30 @@ class BuscarVecinoSeguridadTests(VerificacionBase):
         self.assertEqual(self.buscar(self.user_a).status_code, 200)
         self.assertEqual(self.buscar(self.user_b).status_code, 404)
 
+    def test_vecino_registrado_en_la_delegacion_se_encuentra_sin_actividades(self):
+        self.vecino.delegacion = self.user_a.delegacion
+        self.vecino.save()
+        r = self.buscar(self.user_a)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["delegacion"], self.user_a.delegacion_id)
+        self.assertEqual(r.data["juntas"], [])
+        self.assertEqual(self.buscar(self.user_b).status_code, 404)  # otra delegación
+
+    def test_migracion_asigna_delegacion_de_la_ultima_actividad(self):
+        from importlib import import_module
+
+        from django.apps import apps as apps_reales
+
+        migracion = import_module("territorio.migrations.0003_vecino_delegacion")
+        libre = self.crear_vecino()
+        self.crear_en_bd(self.func_a, hora(2, 10), vecino=self.vecino)
+        self.crear_en_bd(self.func_b, hora(3, 10), vecino=self.vecino)
+        migracion.asignar_delegacion_por_actividad(apps_reales, None)
+        self.vecino.refresh_from_db()
+        libre.refresh_from_db()
+        self.assertEqual(self.vecino.delegacion, self.del_b)  # la actividad más reciente
+        self.assertIsNone(libre.delegacion)
+
     def test_acceso_global_si_ve_al_vecino(self):
         self.assertEqual(self.buscar(self.admin).status_code, 200)
 

@@ -665,14 +665,16 @@ class BuscarVecinoView(APIView):
                 {"error": "RUT inválido.", "campo": "rut"}, status=status.HTTP_400_BAD_REQUEST
             )
         vecino = Vecino.objects.filter(rut=rut, estado=Vecino.ACTIVO).first()
-        # Solo se muestran vecinos ya atendidos en la delegación del usuario (los "libres", sin
-        # actividades, no: serían datos personales de cualquiera). El acceso global ve todo.
-        # TODO(Pamela): reemplazar por vecino.delegacion cuando exista ese campo.
+        # Solo se muestran vecinos de la delegación del usuario: registrados en ella o ya
+        # atendidos en ella (los "libres" de otras delegaciones no: serían datos personales de
+        # cualquiera). El acceso global ve todo.
         if vecino and not verificacion.acceso_global(request.user):
-            atendido = vecino.actividades.filter(
-                funcionario__delegacion_id=request.user.delegacion_id
-            )
-            if not atendido.exists():
+            delegacion_id = request.user.delegacion_id
+            propio = delegacion_id is not None and vecino.delegacion_id == delegacion_id
+            if (
+                not propio
+                and not vecino.actividades.filter(funcionario__delegacion_id=delegacion_id).exists()
+            ):
                 vecino = None  # tampoco se revela que existe en otra delegación
         if vecino is None:
             return Response(
@@ -687,6 +689,12 @@ class BuscarVecinoView(APIView):
                 "apellidos": vecino.apellidos,
                 "telefono": vecino.telefono,
                 "direccion": vecino.direccion,
+                "delegacion": vecino.delegacion_id,
+                "juntas": list(
+                    vecino.membresias.filter(estado="activo").values_list(
+                        "junta__nombre", flat=True
+                    )
+                ),
             }
         )
 

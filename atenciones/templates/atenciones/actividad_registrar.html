@@ -62,6 +62,11 @@
         <p class="error" id="errorVecinoNuevo" role="alert"></p>
         <button type="button" class="btn btn-borde" id="btnRegistrarVecino"><i class="bi bi-person-plus"></i> Registrar vecino</button>
       </div>
+      <div class="campo" id="campoJunta">
+        <label for="junta">Junta de vecinos (opcional)</label>
+        <select id="junta"><option value="">Sin junta</option></select>
+        <small class="ayuda" id="ayudaJunta">Si la elige, el vecino se suma como socio al guardar.</small>
+      </div>
       <div class="campo">
         <label for="contacto">Nombre de la persona atendida</label>
         <input type="text" id="contacto" maxlength="150">
@@ -119,5 +124,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'atenciones/js/actividad_registrar.js' %}?v=20261127-1"></script>
+<script src="{% static 'atenciones/js/actividad_registrar.js' %}?v=20261127-2"></script>
 {% endblock %}
