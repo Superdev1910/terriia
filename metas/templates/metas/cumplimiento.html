@@ -1,0 +1,72 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}{% if config_cumplimiento.modo == "propio" %}Mi cumplimiento{% else %}Cumplimiento por delegación{% endif %}{% endblock %}
+{% block contenido %}
+<link rel="stylesheet" href="{% static 'metas/css/cumplimiento.css' %}">
+<div class="encabezado-pagina">
+  <div>
+    {% if config_cumplimiento.modo == "propio" %}
+    <h1>Mi cumplimiento</h1>
+    <p class="subtitulo">Tu avance por ítem en el período elegido. Tus datos y metas asignadas están en <a href="{% url 'personas_mi_perfil' %}">Mis datos y metas</a>.</p>
+    {% else %}
+    <h1>Cumplimiento por delegación</h1>
+    <p class="subtitulo">Avance y semáforo de cada funcionario activo de la delegación. Haga clic en un funcionario para ver su detalle.</p>
+    {% endif %}
+  </div>
+</div>
+
+<section class="panel" aria-label="Filtros">
+  <form class="filtros" id="filtrosCumplimiento" onsubmit="return false">
+    <label class="cump-filtro"><span>Período</span>
+      <select id="selPeriodo"></select>
+    </label>
+    {% if config_cumplimiento.modo == "delegacion" %}
+    <label class="cump-filtro"><span>Delegación</span>
+      <select id="selDelegacion"></select>
+    </label>
+    {% endif %}
+    <button type="button" class="btn btn-primario" id="btnConsultar"><i class="bi bi-search"></i> Consultar</button>
+  </form>
+</section>
+
+<div id="estadoCumplimiento" class="estado" role="status" aria-live="polite"></div>
+
+{% if config_cumplimiento.modo == "delegacion" %}
+<section class="panel cump-panel" id="panelDelegacion" aria-labelledby="tituloResumen" hidden>
+  <div class="cump-cabecera">
+    <h2 id="tituloResumen">Funcionarios</h2>
+    <span id="promedioDelegacion" class="cump-promedio"></span>
+  </div>
+  <div class="tabla-scroll">
+    <table class="tabla">
+      <caption class="sr">Cumplimiento de los funcionarios de la delegación</caption>
+      <thead><tr><th scope="col">Funcionario</th><th scope="col">Cumplimiento computable</th><th scope="col">Semáforo</th><th scope="col" class="acciones">Detalle</th></tr></thead>
+      <tbody id="cuerpoFuncionarios"></tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel cump-panel" id="panelDetalle" aria-labelledby="tituloDetalle" aria-live="polite" hidden>
+  <div class="cump-cabecera">
+    <h2 id="tituloDetalle">Detalle</h2>
+    <span id="semaforoDetalle"></span>
+  </div>
+  <dl class="cump-resumen">
+    <div><dt>Cumplimiento computable</dt><dd id="detComputable">—</dd></div>
+    <div><dt>Cumplimiento bruto</dt><dd id="detBruto">—</dd></div>
+    <div><dt>Esperado al día</dt><dd id="detEsperado">—</dd></div>
+  </dl>
+  <div class="tabla-scroll">
+    <table class="tabla">
+      <caption class="sr">Cumplimiento por ítem</caption>
+      <thead><tr><th scope="col">Ítem</th><th scope="col">Meta</th><th scope="col">Avance aprobado</th><th scope="col">Ponderador</th><th scope="col">Cumplimiento</th><th scope="col">Aporte ponderado</th></tr></thead>
+      <tbody id="cuerpoItems"></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+{{ config_cumplimiento|json_script:"configCumplimiento" }}
+<script src="{% static 'metas/js/cumplimiento.js' %}"></script>
+{% endblock %}

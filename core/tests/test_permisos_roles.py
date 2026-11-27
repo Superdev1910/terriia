@@ -221,6 +221,7 @@ class PantallasPorRolTests(EscenarioRolesMixin, APITestCase):
             self.nombres_menu(r),
             {
                 "personas_mi_perfil",
+                "metas_mi_cumplimiento",
                 "atenciones_registrar",
                 "atenciones_mis_registros",
                 "atenciones_seguimiento",

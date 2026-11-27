@@ -52,8 +52,32 @@ filtros y las filas. No se afirma que el archivo se haya abierto en Microsoft Ex
   funcionarios activos del municipio. Equivale a ponderar el promedio de cada delegación por su
   cantidad de funcionarios activos. No se muestran esos conteos.
 - La respuesta contiene período, cumplimiento global, esperado y una fila agregada por
-  delegación (id, código, nombre, promedio y semáforo). No incluye funcionarios, áreas, vecinos,
-  actividades ni solicitudes individuales. La pantalla presenta los mismos agregados.
+  delegación (id, código, nombre, promedio y semáforo), más los volúmenes e indicadores de
+  actividad descritos abajo. Nunca incluye funcionarios, vecinos (nombre, RUT, dirección),
+  texto libre de registros ni filas individuales de actividades. La pantalla presenta los
+  mismos agregados.
+- **Filtros**: `?periodo=<id>` (ver arriba) y `?delegacion=<id>` opcional. Con `delegacion`
+  la respuesta trae solo esa delegación (y los globales se calculan sobre ella); un valor no
+  numérico produce HTTP 400 y uno inexistente HTTP 404. La pantalla tiene un selector de
+  delegación; el período se toma de `?periodo=` en la URL de la pantalla.
+- **Volumen de solicitudes**: son los registros `atenciones.Actividad` del período
+  (`fecha` dentro de `_limites_del_periodo`), agrupados por la delegación del funcionario autor.
+  Estado: campo `Actividad.estado` (Ingresado, Pendiente, En proceso, Realizado). Área: FK
+  `Actividad.area` -> `Area.nombre` (DISERCO, Seguridad, Social, Organizacion Comunitaria; las
+  actividades sin área se informan con clave vacía y etiqueta "Sin área"). Se cuentan todas
+  las actividades, sin distinguir estado de verificación ni `tipo_registro`.
+- **Indicadores de actividad** (por delegación y globales), sobre `Actividad.fecha` dentro del
+  período: `total_ingresos`, `fecha_ultimo_ingreso`, `dias_desde_ultimo_ingreso` (null si no
+  hay ingresos) y `promedio_ingresos_diarios` = total / días transcurridos del período (desde
+  el inicio hasta el menor entre hoy y el término, mínimo 1), redondeado a 2 decimales.
+- Claves nuevas (las existentes no cambian): `delegacion_filtro`, `volumen_global`,
+  `indicadores_actividad_global` y, por delegación, `volumen` e `indicadores_actividad`:
+  `{"volumen": {"total": 7, "por_estado": [{"clave": "Ingresado", "etiqueta": "Ingresado",
+  "cantidad": 2}, ...], "por_area": [{"clave": "DISERCO", "etiqueta": "DISERCO", "cantidad":
+  2}, ...]}, "indicadores_actividad": {"total_ingresos": 7, "fecha_ultimo_ingreso":
+  "2026-02-20", "dias_desde_ultimo_ingreso": 19, "promedio_ingresos_diarios": 0.1}}`.
+- Rendimiento: 3 consultas agregadas (`values().annotate(Count, Max)`) además de las
+  existentes; la cantidad de consultas no crece con delegaciones ni actividades.
 - El tope computable es de 150% y está unificado en una sola constante
   (`TOPE_CUMPLIMIENTO` en `metas/cumplimiento.py`), usada tanto por el cálculo por ítem como por
   `CalculoMetasService` y los dashboards (incluido HU22).

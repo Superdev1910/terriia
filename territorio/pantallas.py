@@ -37,10 +37,13 @@ MENU_SECCIONES = [
         "Metas",
         [
             ("metas_dashboard_ejecutivo", "Dashboard ejecutivo", "bi-speedometer2"),
+            ("metas_cumplimiento_delegacion", "Cumplimiento por delegación", "bi-bar-chart-steps"),
+            ("metas_mi_cumplimiento", "Mi cumplimiento", "bi-graph-up-arrow"),
             ("metas_periodos", "Períodos", "bi-calendar-range"),
             ("metas_items", "Ítems", "bi-list-check"),
             ("metas_delegacion", "Metas por delegación", "bi-bullseye"),
             ("metas_individuales", "Metas individuales", "bi-person-check"),
+            ("metas_felicitaciones", "Felicitaciones y reclamos", "bi-chat-heart"),
         ],
     ),
     ("Administración", [("core_roles", "Roles", "bi-shield-lock")]),
@@ -77,9 +80,18 @@ PAGINAS_ACTIVIDADES = {  # SCRUM-62 y seguimiento (Épica 2)
     "atenciones_mis_registros",
     "atenciones_seguimiento",
 }
+PAGINAS_SOLO_NO_ADMIN = {
+    "personas_mi_perfil",
+    "metas_mi_cumplimiento",
+}  # vistas del propio funcionario
 PAGINAS_POR_ROL = {
-    Rol.ENCARGADO_AREA: {*PAGINAS_ACTIVIDADES, "atenciones_verificacion"},
+    Rol.ENCARGADO_AREA: {
+        *PAGINAS_ACTIVIDADES,
+        "atenciones_verificacion",
+        "metas_cumplimiento_delegacion",
+    },
     Rol.JEFE_DELEGACIONES: {
+        "metas_cumplimiento_delegacion",
         "atenciones_verificacion",
         "atenciones_reporte_solicitudes_resueltas",
     },
@@ -91,9 +103,10 @@ PAGINAS_POR_ROL = {
         "personas_funcionarios",
         "metas_delegacion",
         "metas_individuales",
+        "metas_cumplimiento_delegacion",
     },
-    Rol.FUNCIONARIO: {"personas_mi_perfil", *PAGINAS_ACTIVIDADES},
-    Rol.ALCALDESA: {"metas_dashboard_ejecutivo"},
+    Rol.FUNCIONARIO: {"personas_mi_perfil", "metas_mi_cumplimiento", *PAGINAS_ACTIVIDADES},
+    Rol.ALCALDESA: {"metas_dashboard_ejecutivo", "metas_cumplimiento_delegacion"},
 }
 
 
@@ -101,9 +114,9 @@ def menu_para_usuario(usuario):
     rol = rol_de_usuario(usuario)
     if rol == Rol.ADMINISTRADOR:
         return [
-            (titulo, [item for item in paginas if item[0] != "personas_mi_perfil"])
+            (titulo, [item for item in paginas if item[0] not in PAGINAS_SOLO_NO_ADMIN])
             for titulo, paginas in MENU_SECCIONES
-            if any(item[0] != "personas_mi_perfil" for item in paginas)
+            if any(item[0] not in PAGINAS_SOLO_NO_ADMIN for item in paginas)
         ]
     permitidas = PAGINAS_POR_ROL.get(rol, set())
     return [

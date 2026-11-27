@@ -115,3 +115,44 @@
     padding: .7rem .55rem;
   }
 }
+
+.ejecutivo-filtros {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.ejecutivo-panel + .ejecutivo-panel {
+  margin-top: 1.25rem;
+}
+
+.ejecutivo-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: .75rem;
+}
+
+.ejecutivo-tarjeta {
+  padding: .75rem 1rem;
+  border: 1px solid var(--gris-300);
+  border-radius: 6px;
+  background: var(--gris-50);
+}
+
+.ejecutivo-tarjeta h3,
+.ejecutivo-delegacion h3 {
+  margin: 0 0 .5rem;
+  color: var(--gris-900);
+  font-size: 1rem;
+}
+
+.ejecutivo-tarjeta ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.ejecutivo-delegacion {
+  margin-bottom: 1.25rem;
+}

@@ -2,7 +2,7 @@
 {% load static %}
 {% block titulo %}Dashboard ejecutivo{% endblock %}
 {% block contenido %}
-<link rel="stylesheet" href="{% static 'metas/css/dashboard_ejecutivo.css' %}?v=20261126-1">
+<link rel="stylesheet" href="{% static 'metas/css/dashboard_ejecutivo.css' %}?v=20261127-1">
 <div id="dashboardEjecutivo" data-endpoint="{% url 'dashboard-ejecutivo' %}">
 <div class="encabezado-pagina">
   <div>
@@ -10,6 +10,13 @@
     <p class="subtitulo">Cumplimiento consolidado por delegación, sin información individual.</p>
   </div>
 </div>
+
+<section class="panel ejecutivo-filtros" aria-label="Filtros">
+  <label for="filtroDelegacion">Delegación</label>
+  <select id="filtroDelegacion">
+    <option value="">Todas las delegaciones</option>
+  </select>
+</section>
 
 <section class="panel ejecutivo-resumen" aria-labelledby="tituloCumplimiento">
   <div>
@@ -41,8 +48,23 @@
     </table>
   </div>
 </section>
+
+<section class="panel ejecutivo-panel" aria-labelledby="tituloVolumen">
+  <div class="ejecutivo-panel-cabecera">
+    <h2 id="tituloVolumen">Volumen y actividad (total)</h2>
+  </div>
+  <div id="totalesGlobales" class="ejecutivo-tarjetas"></div>
+</section>
+
+<section class="panel ejecutivo-panel" aria-labelledby="tituloDetalle">
+  <div class="ejecutivo-panel-cabecera">
+    <h2 id="tituloDetalle">Solicitudes e indicadores por delegación</h2>
+    <span class="ejecutivo-esperado">Solo datos agregados del período</span>
+  </div>
+  <div id="detalleDelegaciones" class="ejecutivo-detalle"></div>
+</section>
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'metas/js/dashboard_ejecutivo.js' %}?v=20261126-1"></script>
+<script src="{% static 'metas/js/dashboard_ejecutivo.js' %}?v=20261127-1"></script>
 {% endblock %}

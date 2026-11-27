@@ -12,6 +12,8 @@
   const TIPOS_META = [{ v: 'conteo', t: 'Conteo' }, { v: 'porcentaje', t: 'Porcentaje' }];
   const SI_NO = [{ v: 'true', t: 'Sí' }, { v: 'false', t: 'No' }];
   const ACTIVO = [{ v: 'true', t: 'Activo' }, { v: 'false', t: 'Inactivo' }];
+  const TIPOS_FELICITACION = [{ v: 'felicitacion', t: 'Felicitación' }, { v: 'reclamo', t: 'Reclamo' }];
+  const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 
   const etiquetaEstado = (activo, si, no) => activo
     ? `<span class="etiqueta ok"><i class="bi bi-check-circle-fill"></i> ${si}</span>`
@@ -63,6 +65,9 @@
     return m ? `${m.item_nombre} · ${txtDelegacion(m.delegacion)} · ${txtPeriodo(m.periodo)}` : `Meta de delegación ${id}`;
   };
   const txtFuncionario = (id) => { const f = ref('funcionarios', id); return f ? `${f.identificador_inst} · ${f.nombre}` : `Funcionario ${id}`; };
+  const tipoFelicitacion = (v) => (TIPOS_FELICITACION.find((t) => t.v === v) || { t: v }).t;
+  const opcFuncionarios = (actual) => lista('funcionarios').filter((f) => f.estado === 'activo' || f.id_funcionario === actual)
+    .map((f) => ({ v: String(f.id_funcionario), t: txtFuncionario(f.id_funcionario) }));
   const tipoDeMeta = (r) => (ref('metasDelegacion', r.meta_delegacion) || {}).tipo_meta;
 
   // Opciones de los select. «actual» mantiene visible el valor guardado aunque ya esté inactivo.
@@ -233,6 +238,46 @@
     },
   };
 
+  CONFIG['felicitaciones-reclamos'] = {
+    titulo: 'Felicitaciones y reclamos', singular: 'registro', nuevo: 'Nuevo registro', masculino: true,
+    subtitulo: 'Una felicitación suma 10 % y un reclamo resta 20 % al cumplimiento del funcionario. Máximo 3 felicitaciones por período. Un registro no se edita ni se borra.',
+    buscar: 'Buscar por motivo o funcionario…',
+    url: '/api/felicitaciones-reclamos/', pk: 'id_felicitacion_reclamo', archivo: 'felicitaciones_reclamos',
+    sinEditar: true, // la API solo permite listar, consultar y crear
+    columnas: [
+      { k: 'fecha', orden: 'fecha', t: 'Fecha', html: (r) => `<span class="sin-corte">${fecha(r.fecha)}</span>`, excel: (r) => fecha(r.fecha) },
+      { k: 'funcionario', orden: 'funcionario', t: 'Funcionario', html: (r) => esc(r.funcionario_nombre), excel: (r) => r.funcionario_nombre },
+      {
+        k: 'tipo', orden: 'tipo', t: 'Tipo',
+        html: (r) => `<span class="etiqueta ${r.tipo === 'felicitacion' ? 'ok' : 'no'}">${esc(tipoFelicitacion(r.tipo))}</span>`,
+        excel: (r) => tipoFelicitacion(r.tipo),
+      },
+      { k: 'impacto_pct', orden: 'impacto_pct', t: 'Impacto', html: (r) => `${Number(r.impacto_pct) > 0 ? '+' : ''}${num(r.impacto_pct)} %`, excel: (r) => Number(r.impacto_pct) },
+      { k: 'motivo', t: 'Motivo', vacio: '—' },
+      { k: 'usuario_email', t: 'Autorizado por', vacio: '—' },
+    ],
+    campos: [
+      { k: 'funcionario', t: 'Funcionario', tipo: 'select', req: true, ancho: true, id: true, fijo: true, opciones: (reg) => opcFuncionarios(reg && reg.funcionario), vacio: 'Seleccione un funcionario' },
+      { k: 'tipo', t: 'Tipo', tipo: 'select', req: true, fijo: true, opciones: () => TIPOS_FELICITACION, vacio: 'Seleccione el tipo' },
+      { k: 'fecha', t: 'Fecha', tipo: 'date', req: true, fijo: true, defecto: hoyISO, ayuda: 'Debe estar dentro de un período registrado y no puede ser futura.' },
+      { k: 'motivo', t: 'Motivo', req: true, max: 255, ancho: true, fijo: true },
+      { k: 'usuario_email', t: 'Autorizado por', ancho: true, soloVer: true },
+    ],
+    filtros: [
+      { k: 'tipo', t: 'Todos los tipos', opciones: () => TIPOS_FELICITACION },
+      { k: 'funcionario', t: 'Todos los funcionarios', opciones: () => opcFuncionarios() },
+      { k: 'periodo', t: 'Todos los períodos', opciones: () => opcPeriodos() },
+    ],
+    // El filtro «periodo» es virtual: la API filtra por rango de fechas.
+    expandirFiltro: (k, v) => {
+      if (k !== 'periodo') return [[k, v]];
+      const p = ref('periodos', Number(v));
+      return p ? [['fecha__gte', p.fecha_inicio], ['fecha__lte', p.fecha_termino]] : [];
+    },
+    cargarOpciones: () => cargar('funcionarios', 'periodos'),
+    requisitos: () => (opcFuncionarios().length ? null : 'Primero debe registrarse un funcionario activo.'),
+  };
+
   const C = CONFIG[ENTIDAD];
   const columnasTabla = C.columnas.filter((c) => !c.soloExcel); // las «soloExcel» van solo al archivo
   const estado ={ pagina: 1, orden: '', buscar: '', filtros: {}, total: 0 };
@@ -270,12 +315,16 @@
     while (sig) { const d = await api(sig); filas.push(...d.results); sig = d.next; }
     return filas;
   }
-  function parametros(pagina) {
+  function parametros(pagina, crudo) {
     const p = new URLSearchParams();
     if (pagina) p.set('page', pagina);
     if (estado.orden) p.set('ordering', `${estado.orden},${C.pk}`); // el pk desempata: las páginas no repiten ni omiten filas
     if (estado.buscar) p.set('search', estado.buscar);
-    Object.entries(estado.filtros).forEach(([k, v]) => v && p.set(k, v));
+    Object.entries(estado.filtros).forEach(([k, v]) => {
+      if (!v) return;
+      if (crudo || !C.expandirFiltro) p.set(k, v);
+      else C.expandirFiltro(k, v).forEach(([clave, valorFiltro]) => p.set(clave, valorFiltro));
+    });
     return p;
   }
   const alerta = (icon, title, text) => Swal.fire({ icon, title, text, confirmButtonText: 'Entendido' });
@@ -372,7 +421,7 @@
     const id = r[C.pk];
     return `<tr>${celdas}<td class="acciones">
       <button class="btn-accion" data-accion="ver" data-id="${id}" aria-label="Consultar"><i class="bi bi-eye"></i> Ver</button>
-      <button class="btn-accion" data-accion="editar" data-id="${id}" aria-label="Editar"><i class="bi bi-pencil"></i> Editar</button>
+      ${C.sinEditar ? '' : `<button class="btn-accion" data-accion="editar" data-id="${id}" aria-label="Editar"><i class="bi bi-pencil"></i> Editar</button>`}
       ${C.extraAcciones ? C.extraAcciones(r) : ''}
       ${C.desactivar && C.esActivo(r) ? `<button class="btn-accion peligro" data-accion="desactivar" data-id="${id}" aria-label="${C.desactivar.boton}"><i class="bi bi-slash-circle"></i> ${C.desactivar.boton}</button>` : ''}
     </td></tr>`;
@@ -392,7 +441,7 @@
   }
   // Los filtros y la página viven en la URL: al recargar o compartir el enlace se conservan.
   function sincronizarURL() {
-    const p = parametros(estado.pagina > 1 ? estado.pagina : 0).toString();
+    const p = parametros(estado.pagina > 1 ? estado.pagina : 0, true).toString();
     history.replaceState(null, '', p ? `?${p}` : location.pathname);
   }
   function leerURL() {
@@ -405,7 +454,7 @@
   }
 
   /* ---------------- Formulario ---------------- */
-  const bloqueado = (f) => editando.modo === 'ver' || (editando.modo === 'editar' && f.fijo);
+  const bloqueado = (f) => f.soloVer || editando.modo === 'ver' || (editando.modo === 'editar' && f.fijo);
   function campoHTML(f, valorCampo) {
     const id = `f_${f.k}`;
     const dis = bloqueado(f) ? 'disabled' : '';
@@ -445,7 +494,7 @@
     editando = { modo, reg }; sucio = false;
     const ro = modo === 'ver';
     $('modalTitulo').textContent = { crear: C.nuevo, editar: `Editar ${C.singular}`, ver: `Consultar ${C.singular}` }[modo];
-    $('camposForm').innerHTML = C.campos.map((f) => campoHTML(f, valorInicial(f, reg, previo))).join('');
+    $('camposForm').innerHTML = C.campos.filter((f) => !(f.soloVer && !reg)).map((f) => campoHTML(f, valorInicial(f, reg, previo))).join('');
     $('btnGuardar').style.display = ro ? 'none' : '';
     $('btnCancelar').textContent = ro ? 'Cerrar' : 'Cancelar';
     $('modal').hidden = false;
