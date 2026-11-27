@@ -65,6 +65,38 @@
     }
   }
 
+  const COLOR_SEM = { verde: '#176b35', ambar: '#8a5700', rojo: '#a00000' };
+  let grafico = null;
+  let tokenGrafico = 0;
+  // La API de delegación no trae el esperado; es igual para todo el período, se toma del detalle del primer funcionario.
+  async function graficar(d) {
+    const tarjeta = $('tarjetaGrafico');
+    if (!tarjeta) return;
+    if (typeof Chart === 'undefined') { tarjeta.hidden = true; return; }
+    const mio = ++tokenGrafico;
+    let esperado = null;
+    if (d.funcionarios.length) {
+      try {
+        const f = await api(`/api/dashboard/funcionario/${d.funcionarios[0].funcionario_id}/?periodo=${encodeURIComponent($('selPeriodo').value)}`);
+        esperado = Number(f.porcentaje_esperado);
+      } catch (e) { esperado = null; }
+    }
+    if (mio !== tokenGrafico) return;
+    tarjeta.hidden = false;
+    if (grafico) grafico.destroy();
+    const series = [{ label: 'Cumplimiento computable (%)', data: d.funcionarios.map((f) => Number(f.cumplimiento_computable)),
+      backgroundColor: d.funcionarios.map((f) => COLOR_SEM[f.color_semaforo] || '#B71C1C'), order: 2 }];
+    if (esperado !== null) {
+      series.push({ type: 'line', label: 'Esperado al día (%)', order: 1, data: d.funcionarios.map(() => esperado),
+        borderColor: '#333', borderDash: [6, 4], pointRadius: 0, fill: false });
+    }
+    grafico = new Chart($('graficoFuncionarios'), {
+      type: 'bar',
+      data: { labels: d.funcionarios.map((f) => f.nombre), datasets: series },
+      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: (v) => `${v}%` } } } },
+    });
+  }
+
   async function consultar() {
     ficha++;
     $('panelDetalle').hidden = true;
@@ -85,6 +117,7 @@
         ? d.funcionarios.map((f) => `<tr><td>${esc(f.nombre)}</td><td>${pct(f.cumplimiento_computable)}</td><td>${semaforo(f.color_semaforo)}</td><td class="acciones"><button type="button" class="btn-accion" data-id="${esc(f.funcionario_id)}" data-nombre="${esc(f.nombre)}"><i class="bi bi-eye"></i> Ver detalle</button></td></tr>`).join('')
         : '<tr><td colspan="4">La delegación no tiene funcionarios activos.</td></tr>';
       $('panelDelegacion').hidden = false;
+      graficar(d);
     } catch (e) { estado(e.message, true); }
   }
 
