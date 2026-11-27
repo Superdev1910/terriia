@@ -70,8 +70,8 @@ class CalculoMetasServiceTestCase(TestCase):
         self.assertEqual(resultado["cumplimiento_computable"], 0.00)
         self.assertEqual(resultado["color_semaforo"], "rojo")
 
-    def test_tope_maximo_computable_150_porcentaje(self):
-        """2. Valida que el cumplimiento computable se topa en 150% (bruto 200% -> 150)."""
+    def test_tope_maximo_computable_120_porcentaje(self):
+        """2. Valida que el cumplimiento computable se topa en 120% (bruto 200% -> 120)."""
         for _ in range(20):  # 20 de 10 = 200% bruto
             Actividad.objects.create(
                 funcionario=self.funcionario,
@@ -86,5 +86,5 @@ class CalculoMetasServiceTestCase(TestCase):
             periodo_id=self.periodo.pk,
             fecha_evaluacion=date(2026, 3, 31),
         )
-        self.assertGreater(resultado["cumplimiento_bruto"], 150.00)
-        self.assertEqual(resultado["cumplimiento_computable"], 150.00)
+        self.assertGreater(resultado["cumplimiento_bruto"], 120.00)
+        self.assertEqual(resultado["cumplimiento_computable"], 120.00)
