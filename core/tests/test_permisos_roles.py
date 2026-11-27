@@ -216,7 +216,16 @@ class PantallasPorRolTests(EscenarioRolesMixin, APITestCase):
         self.client.force_login(self.usuario_ana)
         r = self.client.get(reverse("personas_mi_perfil"))
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(self.nombres_menu(r), {"personas_mi_perfil"})
+        # SCRUM-62: además de su perfil, el funcionario registra y consulta sus actividades.
+        self.assertEqual(
+            self.nombres_menu(r),
+            {
+                "personas_mi_perfil",
+                "atenciones_registrar",
+                "atenciones_mis_registros",
+                "atenciones_seguimiento",
+            },
+        )
         for nombre in ("personas_funcionarios", "territorio_territorios", "metas_individuales"):
             r = self.client.get(reverse(nombre))
             self.assertEqual(r.status_code, 403, nombre)

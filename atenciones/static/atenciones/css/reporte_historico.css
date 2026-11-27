@@ -1,0 +1,50 @@
+.filtros-reporte {
+  align-items: flex-end;
+  gap: 1rem;
+}
+.filtros-reporte .filtros-extra {
+  flex: 1 1 36rem;
+  gap: 1rem;
+}
+.campo-reporte {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: .35rem;
+  min-width: 10rem;
+  color: var(--gris-700);
+  font-size: .88rem;
+  font-weight: 700;
+}
+.campo-reporte select,
+.campo-reporte input {
+  width: 100%;
+  min-width: 0;
+  color: var(--negro);
+  font-weight: 400;
+}
+.filtros-reporte #btnExportar {
+  min-height: 2.8rem;
+  white-space: nowrap;
+}
+.mensaje-reporte {
+  min-height: 3rem;
+  margin: 0;
+  padding: .9rem 1.1rem;
+  color: var(--gris-700);
+}
+.mensaje-reporte.error {
+  color: var(--rojo-osc);
+  font-weight: 700;
+}
+@media (max-width: 720px) {
+  .filtros-reporte .filtros-extra {
+    flex-basis: 100%;
+  }
+  .campo-reporte {
+    flex-basis: 100%;
+  }
+  .filtros-reporte #btnExportar {
+    width: 100%;
+    justify-content: center;
+  }
+}

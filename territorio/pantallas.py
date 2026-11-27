@@ -36,6 +36,7 @@ MENU_SECCIONES = [
     (
         "Metas",
         [
+            ("metas_dashboard_ejecutivo", "Dashboard ejecutivo", "bi-speedometer2"),
             ("metas_periodos", "Períodos", "bi-calendar-range"),
             ("metas_items", "Ítems", "bi-list-check"),
             ("metas_delegacion", "Metas por delegación", "bi-bullseye"),
@@ -44,23 +45,55 @@ MENU_SECCIONES = [
     ),
     ("Administración", [("core_roles", "Roles", "bi-shield-lock")]),
     (
+        "Actividades",
+        [
+            ("atenciones_registrar", "Registrar actividad", "bi-journal-plus"),
+            ("atenciones_mis_registros", "Mis registros", "bi-journal-text"),
+            ("atenciones_seguimiento", "Seguimiento", "bi-clipboard-check"),
+            ("atenciones_verificacion", "Verificación", "bi-patch-check"),
+        ],
+    ),
+    (
         "Atenciones",
         [
             ("atenciones_tipos", "Tipos de atención", "bi-tags"),
             ("atenciones_sub_atenciones", "Sub atenciones", "bi-tag"),
         ],
     ),
+    (
+        "Reportes",
+        [
+            (
+                "atenciones_reporte_solicitudes_resueltas",
+                "Solicitudes resueltas",
+                "bi-file-earmark-excel",
+            )
+        ],
+    ),
 ]
 
+PAGINAS_ACTIVIDADES = {  # SCRUM-62 y seguimiento (Épica 2)
+    "atenciones_registrar",
+    "atenciones_mis_registros",
+    "atenciones_seguimiento",
+}
 PAGINAS_POR_ROL = {
+    Rol.ENCARGADO_AREA: {*PAGINAS_ACTIVIDADES, "atenciones_verificacion"},
+    Rol.JEFE_DELEGACIONES: {
+        "atenciones_verificacion",
+        "atenciones_reporte_solicitudes_resueltas",
+    },
     Rol.DELEGADO_TERRITORIAL: {
+        *PAGINAS_ACTIVIDADES,
+        "atenciones_verificacion",
         "territorio_territorios",
         "territorio_juntas",
         "personas_funcionarios",
         "metas_delegacion",
         "metas_individuales",
     },
-    Rol.FUNCIONARIO: {"personas_mi_perfil"},
+    Rol.FUNCIONARIO: {"personas_mi_perfil", *PAGINAS_ACTIVIDADES},
+    Rol.ALCALDESA: {"metas_dashboard_ejecutivo"},
 }
 
 

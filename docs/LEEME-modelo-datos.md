@@ -31,3 +31,33 @@ Tu modelo en `models.py` debe tener **los mismos nombres de tabla, campos y valo
 | Valentina | periodo, item | `metas` |
 | Fernando | funcionario, meta_delegacion, meta | `personas` / `metas` |
 | Patricio | rol, usuario, auditoria, codigo_recuperacion | `core` / `personas` |
+
+## Versión 2.6 (SCRUM-62 y SCRUM-123): actividades, verificación y evidencias
+
+Archivo: `docs/modelo-fisico-mysql-terriia-v2.6-delta.sql` (de referencia: las tablas las crean las migraciones de `atenciones`).
+
+| Tabla | Para qué |
+|---|---|
+| `actividad` (ampliada) | Una sola tabla para actividades y gestiones sociales (`tipo_registro`), con código único, ponderación y `estado_verificacion`. |
+| `contador_codigo_actividad` | Último correlativo por delegación y año (código `<COD>-<AAAA>-<5 dígitos>`). |
+| `historial_verificacion` | Cada cambio de `estado_verificacion` (quién, de qué a qué, observación, cuándo). |
+| `evidencia` (ampliada) | Archivos de una actividad; la ruta es privada y se descargan por la API. |
+
+**Por qué `historial_verificacion` es una tabla aparte de `actividad_historial` (v2.4).** `actividad_historial` registra los
+cambios del estado operativo (`estado`, `fecha_compromiso`, `motivo_atraso`) con un `campo` ENUM, y la verificación es otro
+proceso: tiene otros actores (quien verifica, no quien ejecuta), otras reglas (transiciones finales, observación obligatoria) y se
+consulta por separado en la bandeja y en la ficha. Mezclarlas obligaría a ampliar el ENUM `campo` y a distinguir en cada consulta
+de quién es cada fila. Además `actividad_historial` aún no se usa en la aplicación. La tabla `validacion` de la v2.4 (revisión por
+evidencia) **queda sin uso**: la verificación se hace sobre la actividad, no sobre cada evidencia, y la reemplaza
+`historial_verificacion`; no se borra del SQL de referencia.
+
+**`evidencia.estado_revision` está reservado.** Viene del SQL v2.4 (`pendiente`/`revisado`) y hoy no tiene flujo: siempre queda en
+`pendiente`. No se borra por si el cliente define una revisión por evidencia; no la uses en reglas de negocio mientras tanto.
+
+
+## Seguimiento de actividades (Épicas 1 y 2, Brian)
+
+Sin versión nueva del SQL: `actividad_historial` y `comentario` ya estaban en el v2.4 y se crean con la migración
+`atenciones/0006_seguimiento_comentarios` (mismos nombres de tabla y de campo). La tabla `actividad` no cambia: `estado`, `fecha_estado`,
+`fecha_compromiso`, `motivo_atraso`, `responsable_id`, `id_area` y `prioridad` existen desde SCRUM-62. Detalle en
+`docs/LEEME-seguimiento-actividades.md`.
