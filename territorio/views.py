@@ -6,7 +6,12 @@ from rest_framework.response import Response
 
 from core import auditoria
 from core.views import MantenedorViewSet
-from core.permissions import IsAdministradorODelegado, IsOperativoCreaVecinos
+from core.permissions import (
+    IsAdministradorODelegado,
+    IsAdministradorODelegadoOFuncionarioCrea,
+    IsAdministradorODelegadoOFuncionarioLectura,
+    IsOperativoCreaVecinos,
+)
 
 from .models import JuntaVecinos, MiembroJunta, Territorio, Vecino
 from .serializers import (
@@ -33,7 +38,8 @@ class VecinoViewSet(MantenedorViewSet):
 
 
 class TerritorioViewSet(MantenedorViewSet):
-    permission_classes = [IsAdministradorODelegado]
+    permission_classes = [IsAdministradorODelegadoOFuncionarioLectura]
+    funcionario_por_delegacion = True
     delegacion_lookup = "delegacion_id"
     queryset = Territorio.objects.select_related("delegacion").all()
     serializer_class = TerritorioSerializer
@@ -45,7 +51,8 @@ class TerritorioViewSet(MantenedorViewSet):
 
 
 class JuntaVecinosViewSet(MantenedorViewSet):
-    permission_classes = [IsAdministradorODelegado]
+    permission_classes = [IsAdministradorODelegadoOFuncionarioCrea]
+    funcionario_por_delegacion = True
     delegacion_lookup = "territorio__delegacion_id"
     queryset = JuntaVecinos.objects.select_related(
         "territorio", "territorio__delegacion"
