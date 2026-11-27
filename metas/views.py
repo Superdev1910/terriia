@@ -208,7 +208,7 @@ class DashboardFuncionarioView(views.APIView):
 
 
 class DashboardDelegacionView(views.APIView):
-    """Endpoint consolidado por delegación (HU13 / HU22)."""
+    """Endpoint consolidado por delegación (HU13)."""
 
     permission_classes = [IsAuthenticated]
 
@@ -255,6 +255,69 @@ class DashboardDelegacionView(views.APIView):
                 "promedio_cumplimiento_delegacion": round(float(promedio_delegacion), 2),
                 "total_funcionarios": len(funcionarios),
                 "funcionarios": resumen_funcionarios,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DashboardEjecutivoView(views.APIView):
+    """Dashboard ejecutivo agregado, sin registros individuales."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if rol_de_usuario(request.user) not in (Rol.ADMINISTRADOR, Rol.ALCALDESA):
+            raise PermissionDenied("No tiene permiso para ver el dashboard ejecutivo.")
+
+        periodo = _periodo_del_dashboard(request)
+        delegaciones = list(Delegacion.objects.order_by("codigo"))
+        funcionarios = Funcionario.objects.filter(estado=Funcionario.ACTIVO).order_by(
+            "delegacion_id", "pk"
+        )
+        sumas = {delegacion.pk: Decimal("0.00") for delegacion in delegaciones}
+        cantidades = {delegacion.pk: 0 for delegacion in delegaciones}
+
+        for funcionario in funcionarios:
+            resultado = CalculoMetasService.calcular_cumplimiento_funcionario(
+                funcionario_id=funcionario.pk, periodo_id=periodo.pk
+            )
+            sumas[funcionario.delegacion_id] += Decimal(str(resultado["cumplimiento_computable"]))
+            cantidades[funcionario.delegacion_id] += 1
+
+        porcentaje_esperado = CalculoMetasService.calcular_porcentaje_esperado(periodo)
+        resumen_delegaciones = []
+        suma_global = Decimal("0.00")
+        cantidad_global = 0
+
+        for delegacion in delegaciones:
+            cantidad = cantidades[delegacion.pk]
+            cumplimiento = sumas[delegacion.pk] / cantidad if cantidad else Decimal("0.00")
+            suma_global += sumas[delegacion.pk]
+            cantidad_global += cantidad
+            resumen_delegaciones.append(
+                {
+                    "delegacion_id": delegacion.pk,
+                    "codigo": delegacion.codigo,
+                    "nombre": delegacion.nombre,
+                    "cumplimiento_pct": round(float(cumplimiento), 2),
+                    "porcentaje_esperado": round(float(porcentaje_esperado), 2),
+                    "color_semaforo": CalculoMetasService.calcular_color_semaforo(
+                        cumplimiento, porcentaje_esperado
+                    ),
+                }
+            )
+
+        cumplimiento_global = suma_global / cantidad_global if cantidad_global else Decimal("0.00")
+        return Response(
+            {
+                "periodo": {
+                    "id": periodo.pk,
+                    "fecha_inicio": periodo.fecha_inicio,
+                    "fecha_termino": periodo.fecha_termino,
+                },
+                "cumplimiento_global_pct": round(float(cumplimiento_global), 2),
+                "porcentaje_esperado": round(float(porcentaje_esperado), 2),
+                "delegaciones": resumen_delegaciones,
             },
             status=status.HTTP_200_OK,
         )

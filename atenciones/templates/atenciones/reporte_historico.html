@@ -1,0 +1,43 @@
+{% extends "organizacion/base.html" %}
+{% load static %}
+{% block titulo %}Reporte histórico de solicitudes resueltas{% endblock %}
+{% block contenido %}
+<link rel="stylesheet" href="{% static 'atenciones/css/actividad.css' %}?v=20261121-2">
+<link rel="stylesheet" href="{% static 'atenciones/css/reporte_historico.css' %}?v=20261126-1">
+<div class="encabezado-pagina">
+  <div>
+    <h1>Reporte histórico de solicitudes resueltas</h1>
+    <p class="subtitulo">Seleccione una delegación y el período de resolución. El archivo incluye actividades y gestiones sociales en estado Realizado.</p>
+  </div>
+</div>
+
+<section class="panel" aria-label="Filtros del reporte histórico">
+  <form class="filtros filtros-reporte" id="filtrosReporte" onsubmit="return false">
+    <div class="filtros-extra">
+      <label class="campo-reporte">
+        Delegación
+        <select id="filtroDelegacion" required>
+          <option value="">Cargando delegaciones…</option>
+        </select>
+      </label>
+      <label class="campo-reporte">
+        Desde
+        <input type="date" id="filtroDesde" required>
+      </label>
+      <label class="campo-reporte">
+        Hasta
+        <input type="date" id="filtroHasta" required>
+      </label>
+    </div>
+    <button class="btn btn-primario" id="btnExportar" type="submit" disabled>
+      Descargar Excel
+    </button>
+  </form>
+  <p id="mensajeReporte" class="mensaje-reporte" role="status" aria-live="polite">
+    Cargando delegaciones…
+  </p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'atenciones/js/reporte_historico.js' %}?v=20261126-1"></script>
+{% endblock %}
