@@ -2,7 +2,7 @@
 {% load static %}
 {% block titulo %}Dashboard ejecutivo{% endblock %}
 {% block contenido %}
-<link rel="stylesheet" href="{% static 'metas/css/dashboard_ejecutivo.css' %}?v=20261127-1">
+<link rel="stylesheet" href="{% static 'metas/css/dashboard_ejecutivo.css' %}?v=20261127-2">
 <div id="dashboardEjecutivo" data-endpoint="{% url 'dashboard-ejecutivo' %}">
 <div class="encabezado-pagina">
   <div>
@@ -25,6 +25,26 @@
     <p class="ejecutivo-nota">Promedio del cumplimiento computable de funcionarios activos.</p>
   </div>
   <strong id="cumplimientoGlobal" class="ejecutivo-porcentaje" aria-live="polite">—</strong>
+</section>
+
+<section class="panel ejecutivo-panel" id="graficosEjecutivo" aria-labelledby="tituloGraficos">
+  <div class="ejecutivo-panel-cabecera">
+    <h2 id="tituloGraficos">Gráficos de avance</h2>
+  </div>
+  <div class="grafico-rejilla">
+    <div class="grafico-tarjeta grafico-ancho">
+      <h3>Cumplimiento por delegación vs. esperado</h3>
+      <div class="grafico-caja"><canvas id="graficoCumplimiento" role="img" aria-label="Gráfico de barras del cumplimiento por delegación con línea del porcentaje esperado"></canvas></div>
+    </div>
+    <div class="grafico-tarjeta">
+      <h3>Solicitudes por estado</h3>
+      <div class="grafico-caja"><canvas id="graficoEstados" role="img" aria-label="Gráfico de solicitudes por estado"></canvas></div>
+    </div>
+    <div class="grafico-tarjeta">
+      <h3>Solicitudes por área</h3>
+      <div class="grafico-caja"><canvas id="graficoAreas" role="img" aria-label="Gráfico de barras de solicitudes por área"></canvas></div>
+    </div>
+  </div>
 </section>
 
 <section class="panel ejecutivo-panel" aria-labelledby="tituloDelegaciones">
@@ -66,5 +86,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'metas/js/dashboard_ejecutivo.js' %}?v=20261127-1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{% static 'metas/js/dashboard_ejecutivo.js' %}?v=20261127-2"></script>
 {% endblock %}
