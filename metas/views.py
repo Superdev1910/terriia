@@ -177,7 +177,7 @@ def _periodo_del_dashboard(request):
 class DashboardFuncionarioView(views.APIView):
     """
     Endpoint para obtener el semáforo y cumplimiento individual de un funcionario.
-    Ruta: GET /api/metas/dashboard/funcionario/<int:funcionario_id>/
+    Ruta: GET /api/dashboard/funcionario/<int:funcionario_id>/
     """
 
     permission_classes = [IsAuthenticated]
@@ -211,7 +211,10 @@ class DashboardFuncionarioView(views.APIView):
 
 
 class DashboardDelegacionView(views.APIView):
-    """Endpoint consolidado por delegación (HU13)."""
+    """
+    Endpoint consolidado por delegación (HU13).
+    Ruta: GET /api/dashboard/delegacion/<int:delegacion_id>/
+    """
 
     permission_classes = [IsAuthenticated]
 
